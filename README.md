@@ -13,6 +13,22 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Any instance** - Works with any Mastodon-compatible server
 - **Docker-ready** - Single container, just `docker compose up`
 
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
+
+### Install Docker
+
+**Linux (Debian/Ubuntu):**
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+```
+
+**Other platforms:**
+- [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+- [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+
 ## Quick Start
 
 ```bash
@@ -23,6 +39,12 @@ docker compose up -d
 ```
 
 Open `http://localhost:8080`, enter your Mastodon instance domain, and authorize. Tootkeeper will immediately start archiving your full history.
+
+To update to the latest version:
+```bash
+git pull
+docker compose up --build -d
+```
 
 ## Configuration
 
