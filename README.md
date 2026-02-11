@@ -2,6 +2,8 @@
 
 A self-hosted Mastodon activity archiver with full-text search. Automatically saves your toots, notifications, favorites, bookmarks, and media attachments to a local SQLite database.
 
+> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+
 ## Features
 
 - **Archive everything** - Toots, boosts, replies, notifications, favorites, bookmarks
@@ -13,61 +15,98 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Any instance** - Works with any Mastodon-compatible server
 - **Docker-ready** - Single container, just `docker compose up`
 
-## Prerequisites
+## Installation
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
-
-### Install Docker
+### Step 1: Install Docker
 
 **Linux (Debian/Ubuntu):**
+
 ```bash
+# Install Docker
 curl -fsSL https://get.docker.com | sh
+
+# Add your user to the docker group (so you can run docker without sudo)
 sudo usermod -aG docker $USER
+
+# Log out and back in for the group change to take effect, then verify:
+docker --version
 ```
 
-**Other platforms:**
-- [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
-- [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+**Windows:** Download and install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
 
-## Quick Start
+**Mac:** Download and install [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+
+### Step 2: Download Tootkeeper
 
 ```bash
 git clone https://github.com/brunopatuleia/tootkeeper.git
 cd tootkeeper
+```
+
+### Step 3: Configure
+
+```bash
+# Create your config file from the example
 cp .env.example .env
+```
+
+Edit `.env` if you need to change the default settings:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_URL` | `http://localhost:8080` | The URL where Tootkeeper is reachable (important for OAuth) |
+| `POLL_INTERVAL` | `5` | How often to check for new activity (in minutes) |
+| `DB_PATH` | `/app/data/tootkeeper.db` | Where the database is stored inside the container |
+| `MEDIA_PATH` | `/app/data/media` | Where downloaded images are stored inside the container |
+
+If you're running on a remote server, set `APP_URL` to the server's address (e.g. `http://your-server-ip:8080`).
+
+### Step 4: Start Tootkeeper
+
+```bash
 docker compose up -d
 ```
 
-Open `http://localhost:8080`, enter your Mastodon instance domain, and authorize. Tootkeeper will immediately start archiving your full history.
+This builds the container and starts it in the background. First run may take a minute to download dependencies.
 
-To update to the latest version:
+### Step 5: Connect your Mastodon account
+
+1. Open `http://localhost:8080` in your browser (or your server's IP)
+2. Enter your Mastodon instance domain (e.g. `mastodon.social`, `fosstodon.org`)
+3. Click **Login with Mastodon**
+4. You'll be redirected to your instance to authorize read-only access
+5. After authorizing, Tootkeeper starts archiving your full history immediately
+
+That's it! Tootkeeper will continue syncing new activity every 5 minutes.
+
+### Updating
+
 ```bash
+cd tootkeeper
 git pull
 docker compose up --build -d
 ```
 
-## Configuration
+### Headless / Automated Setup
 
-All configuration is in `.env`:
+If you prefer not to use the OAuth flow, you can set credentials directly in `.env`:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_URL` | `http://localhost:8080` | External URL for OAuth redirect |
-| `POLL_INTERVAL` | `5` | Sync interval in minutes |
-| `DB_PATH` | `/app/data/tootkeeper.db` | SQLite database path |
-| `MEDIA_PATH` | `/app/data/media` | Downloaded media storage path |
+```bash
+MASTODON_INSTANCE=https://mastodon.social
+MASTODON_ACCESS_TOKEN=your_access_token_here
+```
 
-For headless/automated setups, you can optionally set `MASTODON_INSTANCE` and `MASTODON_ACCESS_TOKEN` instead of using the OAuth flow.
+To get an access token, go to your instance's **Preferences > Development > New application**, create an app with `read` scope, and copy the access token.
 
 ## What Gets Archived
 
-| Data | Source | Details |
-|------|--------|---------|
-| Your toots | `/api/v1/accounts/:id/statuses` | Posts, replies, boosts |
-| Notifications | `/api/v1/notifications` | Likes, boosts, mentions, follows on your toots |
-| Favorites | `/api/v1/favourites` | Toots you've liked |
-| Bookmarks | `/api/v1/bookmarks` | Toots you've bookmarked |
-| Media | Attachment URLs | Images and GIFs from all of the above |
+| Data | Details |
+|------|---------|
+| **Your toots** | Posts, replies, boosts |
+| **Notifications** | Likes, boosts, mentions, follows on your toots |
+| **Favorites** | Toots you've liked |
+| **Bookmarks** | Toots you've bookmarked |
+| **Media** | Images and GIFs from all of the above, stored locally |
 
 ## Tech Stack
 
