@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Notifications - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>Notifications <span class="count">({{ pagination.total }})</span></h1>
+
+<div class="filter-bar">
+    <a href="/notifications" class="filter-chip {% if not type_filter %}active{% endif %}">All</a>
+    <a href="/notifications?type=favourite" class="filter-chip {% if type_filter == 'favourite' %}active{% endif %}">Favorites</a>
+    <a href="/notifications?type=reblog" class="filter-chip {% if type_filter == 'reblog' %}active{% endif %}">Boosts</a>
+    <a href="/notifications?type=mention" class="filter-chip {% if type_filter == 'mention' %}active{% endif %}">Mentions</a>
+    <a href="/notifications?type=follow" class="filter-chip {% if type_filter == 'follow' %}active{% endif %}">Follows</a>
+    <a href="/notifications?type=poll" class="filter-chip {% if type_filter == 'poll' %}active{% endif %}">Polls</a>
+</div>
+
+{% if items %}
+    {% for notif in items %}
+    <div class="card">
+        <div class="card-meta">
+            <span class="date">{{ notif.created_at[:16] }}</span>
+            <span class="badge badge-{{ notif.type }}">{{ notif.type }}</span>
+        </div>
+        <div class="card-content">
+            <div class="notif-account">
+                {% if notif.account_avatar %}
+                <img src="{{ notif.account_avatar }}" alt="" class="avatar">
+                {% endif %}
+                <strong>{{ notif.account_display_name or notif.account_acct }}</strong>
+                <span class="acct">@{{ notif.account_acct }}</span>
+            </div>
+            {% if notif.status_content %}
+            <div class="notif-status">{{ notif.status_content | safe }}</div>
+            {% endif %}
+        </div>
+        {% if notif.status_id %}
+        <div class="card-footer">
+            <a href="/toot/{{ notif.status_id }}">View toot</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% include "pagination.html" %}
+{% else %}
+    <p class="empty">No notifications found.</p>
+{% endif %}
+{% endblock %}

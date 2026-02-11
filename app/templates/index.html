@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "media.html" import show_media %}
+{% block title %}Dashboard - Tootkeeper{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="header-row">
+        <h1>Dashboard</h1>
+        <button class="btn btn-sync" onclick="triggerSync()">Sync Now</button>
+    </div>
+    <div id="sync-status" class="sync-status" style="display:none;"></div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.toots }}</div>
+            <div class="stat-label">Toots</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.notifications }}</div>
+            <div class="stat-label">Notifications</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.favorites }}</div>
+            <div class="stat-label">Favorites</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.bookmarks }}</div>
+            <div class="stat-label">Bookmarks</div>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <div class="col">
+            <h2>Recent Toots</h2>
+            {% if recent_toots %}
+                {% for toot in recent_toots %}
+                <div class="card">
+                    <div class="card-meta">
+                        <span class="date">{{ toot.created_at[:16] }}</span>
+                        {% if toot.reblog_id %}
+                        <span class="badge badge-boost">Boost</span>
+                        {% elif toot.in_reply_to_id %}
+                        <span class="badge badge-reply">Reply</span>
+                        {% endif %}
+                        <span class="visibility">{{ toot.visibility }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if toot.reblog_content %}
+                            <div class="reblog-info">Boosted from @{{ toot.reblog_account }}</div>
+                            {{ toot.reblog_content | safe }}
+                        {% else %}
+                            {{ toot.content | safe }}
+                        {% endif %}
+                    </div>
+                    {{ show_media(toot.media_attachments) }}
+                    <div class="card-footer">
+                        <span title="Favorites">&#9733; {{ toot.favourites_count }}</span>
+                        <span title="Boosts">&#8635; {{ toot.reblogs_count }}</span>
+                        <span title="Replies">&#9993; {{ toot.replies_count }}</span>
+                        <a href="/toot/{{ toot.id }}">Details</a>
+                    </div>
+                </div>
+                {% endfor %}
+                <a href="/toots" class="view-all">View all toots &rarr;</a>
+            {% else %}
+                <p class="empty">No toots yet. Data will appear after the first sync.</p>
+            {% endif %}
+        </div>
+
+        <div class="col">
+            <h2>Recent Notifications</h2>
+            {% if recent_notifications %}
+                {% for notif in recent_notifications %}
+                <div class="card">
+                    <div class="card-meta">
+                        <span class="date">{{ notif.created_at[:16] }}</span>
+                        <span class="badge badge-{{ notif.type }}">{{ notif.type }}</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="notif-account">
+                            {% if notif.account_avatar %}
+                            <img src="{{ notif.account_avatar }}" alt="" class="avatar">
+                            {% endif %}
+                            <strong>{{ notif.account_display_name or notif.account_acct }}</strong>
+                            <span class="acct">@{{ notif.account_acct }}</span>
+                        </div>
+                        {% if notif.status_content %}
+                        <div class="notif-status">{{ notif.status_content | safe }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                <a href="/notifications" class="view-all">View all notifications &rarr;</a>
+            {% else %}
+                <p class="empty">No notifications yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

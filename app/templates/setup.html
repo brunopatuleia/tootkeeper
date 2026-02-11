@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Setup - Tootkeeper{% endblock %}
+
+{% block content %}
+<div class="setup-page">
+    <div class="setup-card">
+        <h1>Welcome to Tootkeeper</h1>
+        <p class="setup-desc">Archive your Mastodon activity with full-text search. Connect your account to get started.</p>
+
+        {% if settings.get('account_acct') %}
+        <div class="current-account">
+            <h2>Connected Account</h2>
+            <div class="account-info">
+                {% if settings.get('account_avatar') %}
+                <img src="{{ settings.account_avatar }}" alt="" class="avatar-large">
+                {% endif %}
+                <div>
+                    <strong>{{ settings.get('account_display_name', '') }}</strong>
+                    <div class="acct">@{{ settings.account_acct }}@{{ settings.get('instance_url', '').replace('https://', '').replace('http://', '') }}</div>
+                </div>
+            </div>
+            <a href="/auth/logout" class="btn btn-danger" onclick="return confirm('Disconnect your account? Your archived data will be kept.')">Disconnect</a>
+            <a href="/" class="btn btn-sync">Go to Dashboard</a>
+        </div>
+        {% else %}
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form action="/auth/login" method="post" class="setup-form">
+            <label for="instance_url">Your Mastodon Instance</label>
+            <div class="input-row">
+                <input
+                    type="text"
+                    id="instance_url"
+                    name="instance_url"
+                    placeholder="mastodon.social"
+                    value="{{ settings.get('instance_url', '').replace('https://', '') }}"
+                    required
+                    autofocus
+                >
+                <button type="submit" class="btn btn-sync">Login with Mastodon</button>
+            </div>
+            <p class="setup-hint">Enter your instance domain (e.g. mastodon.social, fosstodon.org). You'll be redirected to authorize read-only access.</p>
+        </form>
+        {% endif %}
+
+        <div class="setup-features">
+            <h3>What gets archived</h3>
+            <ul>
+                <li>Your toots (posts, replies, boosts)</li>
+                <li>Notifications (who liked, boosted, replied to your toots)</li>
+                <li>Your favorites (toots you liked)</li>
+                <li>Your bookmarks</li>
+            </ul>
+            <p class="setup-hint">Only <strong>read</strong> permission is requested. This app will never post, like, or modify anything on your behalf.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

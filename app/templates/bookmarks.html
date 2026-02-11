@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "media.html" import show_media %}
+{% block title %}Bookmarks - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>My Bookmarks <span class="count">({{ pagination.total }})</span></h1>
+
+{% if items %}
+    {% for bm in items %}
+    <div class="card">
+        <div class="card-meta">
+            <span class="date">{{ bm.created_at[:16] }}</span>
+        </div>
+        <div class="card-content">
+            <div class="notif-account">
+                {% if bm.account_avatar %}
+                <img src="{{ bm.account_avatar }}" alt="" class="avatar">
+                {% endif %}
+                <strong>{{ bm.account_display_name or bm.account_acct }}</strong>
+                <span class="acct">@{{ bm.account_acct }}</span>
+            </div>
+            <div class="notif-status">{{ bm.content | safe }}</div>
+            {{ show_media(bm.media_attachments) }}
+        </div>
+        <div class="card-footer">
+            {% if bm.url %}
+            <a href="{{ bm.url }}" target="_blank" rel="noopener">Original</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% include "pagination.html" %}
+{% else %}
+    <p class="empty">No bookmarks found.</p>
+{% endif %}
+{% endblock %}

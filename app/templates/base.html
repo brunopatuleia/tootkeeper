@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tootkeeper{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">Tootkeeper</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="/toots" class="{% if request.url.path == '/toots' %}active{% endif %}">Toots</a>
+            <a href="/notifications" class="{% if request.url.path == '/notifications' %}active{% endif %}">Notifications</a>
+            <a href="/favorites" class="{% if request.url.path == '/favorites' %}active{% endif %}">Favorites</a>
+            <a href="/bookmarks" class="{% if request.url.path == '/bookmarks' %}active{% endif %}">Bookmarks</a>
+        </div>
+        <form class="nav-search" action="/search" method="get">
+            <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
+            <button type="submit">Search</button>
+        </form>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

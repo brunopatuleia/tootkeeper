@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Search - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>Search</h1>
+
+<form class="search-form" action="/search" method="get">
+    <div class="search-input-row">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search your Mastodon archive..." autofocus>
+        <button type="submit">Search</button>
+    </div>
+    <div class="filter-bar">
+        <label class="filter-chip {% if not type_filter %}active{% endif %}">
+            <input type="radio" name="type" value="" {% if not type_filter %}checked{% endif %} onchange="this.form.submit()"> All
+        </label>
+        <label class="filter-chip {% if type_filter == 'toot' %}active{% endif %}">
+            <input type="radio" name="type" value="toot" {% if type_filter == 'toot' %}checked{% endif %} onchange="this.form.submit()"> Toots
+        </label>
+        <label class="filter-chip {% if type_filter == 'notification' %}active{% endif %}">
+            <input type="radio" name="type" value="notification" {% if type_filter == 'notification' %}checked{% endif %} onchange="this.form.submit()"> Notifications
+        </label>
+        <label class="filter-chip {% if type_filter == 'favorite' %}active{% endif %}">
+            <input type="radio" name="type" value="favorite" {% if type_filter == 'favorite' %}checked{% endif %} onchange="this.form.submit()"> Favorites
+        </label>
+        <label class="filter-chip {% if type_filter == 'bookmark' %}active{% endif %}">
+            <input type="radio" name="type" value="bookmark" {% if type_filter == 'bookmark' %}checked{% endif %} onchange="this.form.submit()"> Bookmarks
+        </label>
+    </div>
+</form>
+
+{% if query %}
+    <p class="results-info">{{ pagination.total }} result{{ 's' if pagination.total != 1 else '' }} for <strong>"{{ query }}"</strong></p>
+
+    {% if results %}
+        {% for result in results %}
+        <div class="card search-result">
+            <div class="card-meta">
+                <span class="badge badge-{{ result.source_type }}">{{ result.source_type }}</span>
+                {% if result.account %}
+                <span class="acct">@{{ result.account }}</span>
+                {% endif %}
+            </div>
+            <div class="card-content">
+                <div class="snippet">{{ result.snippet | safe }}</div>
+            </div>
+            <div class="card-footer">
+                {% if result.source_type == 'toot' %}
+                <a href="/toot/{{ result.source_id }}">View toot</a>
+                {% elif result.source_type == 'notification' and result.source and result.source.status_id %}
+                <a href="/toot/{{ result.source.status_id }}">View toot</a>
+                {% endif %}
+                {% if result.source and result.source.url %}
+                <a href="{{ result.source.url }}" target="_blank" rel="noopener">Original</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% include "pagination.html" %}
+    {% else %}
+        <p class="empty">No results found.</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

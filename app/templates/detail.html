@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "media.html" import show_media %}
+{% block title %}Toot Detail - Tootkeeper{% endblock %}
+
+{% block content %}
+<div class="detail">
+    <a href="javascript:history.back()" class="back-link">&larr; Back</a>
+
+    <div class="card detail-card">
+        <div class="card-meta">
+            <span class="date">{{ toot.created_at[:19] }}</span>
+            {% if toot.reblog_id %}
+            <span class="badge badge-boost">Boost</span>
+            {% elif toot.in_reply_to_id %}
+            <span class="badge badge-reply">Reply</span>
+            {% endif %}
+            <span class="visibility">{{ toot.visibility }}</span>
+        </div>
+        <div class="card-content">
+            {% if toot.reblog_content %}
+                <div class="reblog-info">Boosted from @{{ toot.reblog_account }}</div>
+                {{ toot.reblog_content | safe }}
+            {% else %}
+                {{ toot.content | safe }}
+            {% endif %}
+            {{ show_media(toot.media_attachments) }}
+        </div>
+        <div class="card-stats">
+            <div class="stat">
+                <span class="stat-number">{{ toot.favourites_count }}</span>
+                <span class="stat-label">Favorites</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">{{ toot.reblogs_count }}</span>
+                <span class="stat-label">Boosts</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">{{ toot.replies_count }}</span>
+                <span class="stat-label">Replies</span>
+            </div>
+        </div>
+        {% if toot.url %}
+        <div class="card-footer">
+            <a href="{{ toot.url }}" target="_blank" rel="noopener">View on Mastodon</a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if toot.notifications %}
+    <h2>Interactions ({{ toot.notifications | length }})</h2>
+    {% for notif in toot.notifications %}
+    <div class="card interaction-card">
+        <div class="card-meta">
+            <span class="date">{{ notif.created_at[:16] }}</span>
+            <span class="badge badge-{{ notif.type }}">{{ notif.type }}</span>
+        </div>
+        <div class="card-content">
+            <div class="notif-account">
+                {% if notif.account_avatar %}
+                <img src="{{ notif.account_avatar }}" alt="" class="avatar">
+                {% endif %}
+                <strong>{{ notif.account_display_name or notif.account_acct }}</strong>
+                <span class="acct">@{{ notif.account_acct }}</span>
+            </div>
+            {% if notif.type == 'mention' and notif.status_content %}
+            <div class="notif-status">{{ notif.status_content | safe }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "media.html" import show_media %}
+{% block title %}Favorites - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>My Favorites <span class="count">({{ pagination.total }})</span></h1>
+
+{% if items %}
+    {% for fav in items %}
+    <div class="card">
+        <div class="card-meta">
+            <span class="date">{{ fav.created_at[:16] }}</span>
+        </div>
+        <div class="card-content">
+            <div class="notif-account">
+                {% if fav.account_avatar %}
+                <img src="{{ fav.account_avatar }}" alt="" class="avatar">
+                {% endif %}
+                <strong>{{ fav.account_display_name or fav.account_acct }}</strong>
+                <span class="acct">@{{ fav.account_acct }}</span>
+            </div>
+            <div class="notif-status">{{ fav.content | safe }}</div>
+            {{ show_media(fav.media_attachments) }}
+        </div>
+        <div class="card-footer">
+            {% if fav.url %}
+            <a href="{{ fav.url }}" target="_blank" rel="noopener">Original</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% include "pagination.html" %}
+{% else %}
+    <p class="empty">No favorites found.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% macro show_media(media_json) %}
+{% if media_json and media_json != '[]' %}
+    {% set media_list = media_json | fromjson if media_json is string else media_json %}
+    {% if media_list %}
+    <div class="media-grid media-count-{{ media_list | length }}">
+        {% for attachment in media_list %}
+            {% if attachment.type is defined and attachment.type in ['image', 'gifv'] %}
+            <a href="{{ media_url(attachment) }}" target="_blank" class="media-item">
+                <img src="{{ media_preview_url(attachment) or media_url(attachment) }}" alt="{{ attachment.description or '' }}" loading="lazy">
+            </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endif %}
+{% endmacro %}

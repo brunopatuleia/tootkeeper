@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "media.html" import show_media %}
+{% block title %}My Toots - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>My Toots <span class="count">({{ pagination.total }})</span></h1>
+
+{% if items %}
+    {% for toot in items %}
+    <div class="card">
+        <div class="card-meta">
+            <span class="date">{{ toot.created_at[:16] }}</span>
+            {% if toot.reblog_id %}
+            <span class="badge badge-boost">Boost</span>
+            {% elif toot.in_reply_to_id %}
+            <span class="badge badge-reply">Reply</span>
+            {% endif %}
+            <span class="visibility">{{ toot.visibility }}</span>
+        </div>
+        <div class="card-content">
+            {% if toot.reblog_content %}
+                <div class="reblog-info">Boosted from @{{ toot.reblog_account }}</div>
+                {{ toot.reblog_content | safe }}
+            {% else %}
+                {{ toot.content | safe }}
+            {% endif %}
+        </div>
+        {{ show_media(toot.media_attachments) }}
+        <div class="card-footer">
+            <span title="Favorites">&#9733; {{ toot.favourites_count }}</span>
+            <span title="Boosts">&#8635; {{ toot.reblogs_count }}</span>
+            <span title="Replies">&#9993; {{ toot.replies_count }}</span>
+            <a href="/toot/{{ toot.id }}">Details</a>
+            {% if toot.url %}
+            <a href="{{ toot.url }}" target="_blank" rel="noopener">Original</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% include "pagination.html" %}
+{% else %}
+    <p class="empty">No toots found.</p>
+{% endif %}
+{% endblock %}

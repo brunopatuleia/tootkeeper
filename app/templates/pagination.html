@@ -1,0 +1,11 @@
+{% if pagination.total_pages > 1 %}
+<div class="pagination">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.page - 1 }}{% for k, v in request.query_params.items() %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" class="page-link">&larr; Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.page + 1 }}{% for k, v in request.query_params.items() %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" class="page-link">Next &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
