@@ -456,3 +456,84 @@ def is_configured(conn: sqlite3.Connection) -> bool:
     token = get_setting(conn, "access_token")
     instance = get_setting(conn, "instance_url")
     return bool(token and instance)
+
+
+def get_topic_counts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
+    """Extract common topics/words from toot content, excluding stopwords and short words."""
+    from collections import Counter
+    import re
+
+    stopwords = {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her",
+        "was", "one", "our", "out", "has", "have", "been", "from", "this", "that",
+        "with", "they", "will", "each", "make", "like", "just", "over", "such", "take",
+        "than", "them", "very", "some", "what", "when", "who", "how", "its", "also",
+        "into", "about", "more", "other", "which", "their", "there", "would", "could",
+        "should", "these", "those", "then", "being", "here", "where", "does", "done",
+        "doing", "going", "were", "went", "your", "it's", "don't", "i'm", "it",
+        "de", "que", "um", "uma", "para", "com", "por", "mais", "mas", "como",
+        "dos", "das", "nos", "nas", "aos", "seu", "sua", "esse", "essa", "isso",
+        "este", "esta", "isto", "ele", "ela", "eles", "elas", "nao", "sim", "bem",
+        "muito", "tambem", "ainda", "depois", "antes", "sobre", "entre", "mesmo",
+        "quando", "onde", "quem", "qual", "cada", "todo", "toda", "todos", "todas",
+        "http", "https", "www", "com",
+    }
+    counts = Counter()
+    for table in ("toots", "favorites", "bookmarks"):
+        rows = conn.execute(f"SELECT content_text FROM {table} WHERE content_text IS NOT NULL AND content_text != ''").fetchall()
+        for row in rows:
+            words = re.findall(r'[a-zA-ZÀ-ÿ]{4,}', row["content_text"].lower())
+            for word in words:
+                if word not in stopwords and not word.startswith("http"):
+                    counts[word] += 1
+    # Filter to words appearing at least 3 times
+    filtered = {w: c for w, c in counts.items() if c >= 3}
+    most_common = Counter(filtered).most_common(limit)
+    if not most_common:
+        return []
+    max_count = most_common[0][1]
+    min_count = most_common[-1][1]
+    result = []
+    for name, count in most_common:
+        if max_count == min_count:
+            weight = 3
+        else:
+            weight = 1 + 4 * (count - min_count) / (max_count - min_count)
+        result.append({"name": name, "count": count, "weight": round(weight, 2)})
+    result.sort(key=lambda t: t["name"])
+    return result
+
+
+def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100) -> list[dict]:
+    """Extract hashtag counts from raw_json across toots, favorites, and bookmarks."""
+    from collections import Counter
+    counts = Counter()
+    for table in ("toots", "favorites", "bookmarks"):
+        rows = conn.execute(f"SELECT raw_json FROM {table} WHERE raw_json IS NOT NULL").fetchall()
+        for row in rows:
+            try:
+                data = json.loads(row["raw_json"])
+                tags = data.get("tags", [])
+                # Also check reblog tags
+                reblog = data.get("reblog")
+                if reblog and isinstance(reblog, dict):
+                    tags = tags + reblog.get("tags", [])
+                for tag in tags:
+                    if isinstance(tag, dict) and tag.get("name"):
+                        counts[tag["name"].lower()] += 1
+            except (json.JSONDecodeError, TypeError):
+                continue
+    most_common = counts.most_common(limit)
+    if not most_common:
+        return []
+    max_count = most_common[0][1]
+    min_count = most_common[-1][1]
+    result = []
+    for name, count in most_common:
+        if max_count == min_count:
+            weight = 3
+        else:
+            weight = 1 + 4 * (count - min_count) / (max_count - min_count)
+        result.append({"name": name, "count": count, "weight": round(weight, 2)})
+    result.sort(key=lambda t: t["name"])
+    return result

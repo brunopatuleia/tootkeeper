@@ -17,6 +17,8 @@
             <a href="/notifications" class="{% if request.url.path == '/notifications' %}active{% endif %}">Notifications</a>
             <a href="/favorites" class="{% if request.url.path == '/favorites' %}active{% endif %}">Favorites</a>
             <a href="/bookmarks" class="{% if request.url.path == '/bookmarks' %}active{% endif %}">Bookmarks</a>
+            <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
+            <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
         </div>
         <form class="nav-search" action="/search" method="get">
             <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">

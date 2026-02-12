@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Topics - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>Topic Cloud <span class="count">({{ total }} topics)</span></h1>
+
+{% if topics %}
+<div class="tag-cloud">
+    {% for topic in topics %}
+    <a href="/search?q={{ topic.name }}" class="cloud-tag cloud-tag-topic" style="font-size: {{ topic.weight }}rem;" title="{{ topic.name }} ({{ topic.count }})">
+        {{ topic.name }}
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+    <p class="empty">No topics found yet. Sync some toots first.</p>
+{% endif %}
+{% endblock %}

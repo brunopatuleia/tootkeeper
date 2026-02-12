@@ -697,3 +697,32 @@ h2 {
 .media-item:hover img {
     opacity: 0.85;
 }
+
+/* Tag cloud */
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    line-height: 1.8;
+}
+
+.cloud-tag {
+    color: var(--accent);
+    transition: color 0.15s, transform 0.15s;
+    white-space: nowrap;
+}
+
+.cloud-tag:hover {
+    color: var(--text);
+    text-decoration: none;
+    transform: scale(1.1);
+}
+
+.cloud-tag-topic {
+    color: var(--green);
+}

@@ -18,11 +18,13 @@ from app.database import (
     get_bookmarks,
     get_db,
     get_favorites,
+    get_hashtag_counts,
     get_notifications,
     get_setting,
     get_stats,
     get_toot_detail,
     get_toots,
+    get_topic_counts,
     init_db,
     is_configured,
     set_setting,
@@ -416,6 +418,34 @@ async def search_page(
         "type_filter": type,
         "results": results,
         "pagination": pagination,
+    })
+
+
+@app.get("/hashtags", response_class=HTMLResponse)
+async def hashtags_page(request: Request):
+    redirect = _require_setup(request)
+    if redirect:
+        return redirect
+    with get_db() as conn:
+        hashtags = get_hashtag_counts(conn)
+    return templates.TemplateResponse("hashtags.html", {
+        "request": request,
+        "hashtags": hashtags,
+        "total": len(hashtags),
+    })
+
+
+@app.get("/topics", response_class=HTMLResponse)
+async def topics_page(request: Request):
+    redirect = _require_setup(request)
+    if redirect:
+        return redirect
+    with get_db() as conn:
+        topics = get_topic_counts(conn)
+    return templates.TemplateResponse("topics.html", {
+        "request": request,
+        "topics": topics,
+        "total": len(topics),
     })
 
 
