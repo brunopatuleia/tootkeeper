@@ -181,14 +181,13 @@ def _require_setup(request: Request) -> RedirectResponse | None:
 # ─── OAuth / Setup ────────────────────────────────────────────────
 
 @app.get("/setup", response_class=HTMLResponse)
-async def setup_page(request: Request, error: str = "", ai_saved: str = ""):
+async def setup_page(request: Request, error: str = ""):
     with get_db() as conn:
         settings = get_all_settings(conn)
     return templates.TemplateResponse("setup.html", {
         "request": request,
         "settings": settings,
         "error": error,
-        "ai_saved": bool(ai_saved),
     })
 
 
@@ -322,7 +321,7 @@ async def save_ai_settings(request: Request):
             set_setting(conn, key, value)
         # Clear cached roast so next dashboard load generates fresh
         conn.execute("DELETE FROM app_settings WHERE key IN ('roast_cache', 'roast_cache_time')")
-    return RedirectResponse(url="/setup?ai_saved=1", status_code=302)
+    return RedirectResponse(url="/settings?saved=1", status_code=302)
 
 
 @app.post("/api/roast")
@@ -333,6 +332,21 @@ async def api_regenerate_roast():
     if not roasts:
         return JSONResponse({"status": "error", "message": "AI not configured or API call failed"}, status_code=400)
     return JSONResponse({"status": "ok", "roasts": roasts})
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request, saved: str = ""):
+    redirect = _require_setup(request)
+    if redirect:
+        return redirect
+    with get_db() as conn:
+        settings = get_all_settings(conn)
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "settings": settings,
+        "saved": bool(saved),
+        "poll_interval": POLL_INTERVAL,
+    })
 
 
 # ─── Main pages ───────────────────────────────────────────────────

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Settings - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+{% if saved %}
+<div class="sync-status done" style="display:block; margin-bottom: 1rem;">Settings saved!</div>
+{% endif %}
+
+<div class="settings-grid">
+    <div class="settings-section">
+        <h2>Account</h2>
+        {% if settings.get('account_acct') %}
+        <div class="account-info" style="margin-bottom: 1rem;">
+            {% if settings.get('account_avatar') %}
+            <img src="{{ settings.account_avatar }}" alt="" class="avatar-large">
+            {% endif %}
+            <div>
+                <strong>{{ settings.get('account_display_name', '') }}</strong>
+                <div class="acct">@{{ settings.account_acct }}@{{ settings.get('instance_url', '').replace('https://', '').replace('http://', '') }}</div>
+            </div>
+        </div>
+        <div class="settings-actions">
+            <a href="/auth/logout" class="btn btn-danger" onclick="return confirm('Disconnect your account? Your archived data will be kept.')">Disconnect</a>
+        </div>
+        {% else %}
+        <p class="setup-hint">No account connected. <a href="/setup">Set up your account</a>.</p>
+        {% endif %}
+    </div>
+
+    <div class="settings-section">
+        <h2>AI Roast</h2>
+        <p class="setup-hint" style="margin-bottom: 1rem;">Connect an AI provider to get a personalized roast on your dashboard. Optional - leave disabled if you don't want it.</p>
+
+        <form action="/settings/ai" method="post" class="setup-form">
+            <label for="ai_provider">Provider</label>
+            <select id="ai_provider" name="ai_provider" class="select-input" onchange="toggleAiFields()">
+                <option value="">Disabled</option>
+                <option value="anthropic" {{ 'selected' if settings.get('ai_provider') == 'anthropic' }}>Anthropic (Claude)</option>
+                <option value="openai" {{ 'selected' if settings.get('ai_provider') == 'openai' }}>OpenAI (GPT)</option>
+                <option value="gemini" {{ 'selected' if settings.get('ai_provider') == 'gemini' }}>Google (Gemini)</option>
+                <option value="openai-compatible" {{ 'selected' if settings.get('ai_provider') == 'openai-compatible' }}>OpenAI-Compatible (Ollama, etc.)</option>
+            </select>
+
+            <div id="ai-fields" style="{{ '' if settings.get('ai_provider') else 'display:none;' }}">
+                <label for="ai_api_key" style="margin-top: 0.75rem;">API Key</label>
+                <input type="password" id="ai_api_key" name="ai_api_key" placeholder="sk-..." value="{{ settings.get('ai_api_key', '') }}">
+
+                <label for="ai_model" style="margin-top: 0.75rem;">Model <span class="setup-hint">(optional, uses sensible default)</span></label>
+                <input type="text" id="ai_model" name="ai_model" placeholder="e.g. claude-sonnet-4-5-20250929, gpt-4o, gemini-2.0-flash" value="{{ settings.get('ai_model', '') }}">
+
+                <div id="ai-base-url-row" style="{{ '' if settings.get('ai_provider') == 'openai-compatible' else 'display:none;' }}">
+                    <label for="ai_base_url" style="margin-top: 0.75rem;">Base URL</label>
+                    <input type="text" id="ai_base_url" name="ai_base_url" placeholder="http://localhost:11434/v1" value="{{ settings.get('ai_base_url', '') }}">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save AI Settings</button>
+        </form>
+    </div>
+
+    <div class="settings-section">
+        <h2>About</h2>
+        <p class="setup-hint">Tootkeeper archives your Mastodon activity with full-text search.</p>
+        <p class="setup-hint" style="margin-top: 0.5rem;">Sync interval: every {{ poll_interval }} minutes</p>
+        <p class="setup-hint" style="margin-top: 0.5rem;">Built with vibe coding via <a href="https://claude.ai/claude-code" target="_blank">Claude Code</a>.</p>
+    </div>
+</div>
+
+<script>
+function toggleAiFields() {
+    var provider = document.getElementById('ai_provider').value;
+    document.getElementById('ai-fields').style.display = provider ? '' : 'none';
+    document.getElementById('ai-base-url-row').style.display = provider === 'openai-compatible' ? '' : 'none';
+}
+</script>
+{% endblock %}

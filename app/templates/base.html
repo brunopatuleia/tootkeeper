@@ -24,6 +24,7 @@
             <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
             <button type="submit">Search</button>
         </form>
+        <a href="/settings" class="nav-settings {% if request.url.path == '/settings' %}active{% endif %}" title="Settings">&#9881;</a>
     </nav>
 
     <main class="container">

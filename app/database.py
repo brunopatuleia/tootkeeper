@@ -693,7 +693,7 @@ def get_topic_counts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
         else:
             weight = 1 + 4 * (count - min_count) / (max_count - min_count)
         result.append({"name": name, "count": count, "weight": round(weight, 2)})
-    result.sort(key=lambda t: t["name"])
+    result.sort(key=lambda t: t["count"], reverse=True)
     return result
 
 
@@ -728,5 +728,5 @@ def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100) -> list[dict]
         else:
             weight = 1 + 4 * (count - min_count) / (max_count - min_count)
         result.append({"name": name, "count": count, "weight": round(weight, 2)})
-    result.sort(key=lambda t: t["name"])
+    result.sort(key=lambda t: t["count"], reverse=True)
     return result

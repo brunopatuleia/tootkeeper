@@ -820,3 +820,42 @@ h2 {
     outline: none;
     border-color: var(--accent);
 }
+
+/* Settings nav icon */
+.nav-settings {
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: var(--radius);
+    transition: color 0.15s, background 0.15s;
+    text-decoration: none;
+}
+
+.nav-settings:hover,
+.nav-settings.active {
+    color: var(--text);
+    background: var(--bg-hover);
+    text-decoration: none;
+}
+
+/* Settings page */
+.settings-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.settings-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.settings-section h2 {
+    margin-bottom: 0.75rem;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 0.5rem;
+}
