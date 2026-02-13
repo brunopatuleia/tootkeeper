@@ -12,3 +12,10 @@ MEDIA_PATH = os.environ.get("MEDIA_PATH", "/app/data/media")
 # The external URL where this app is reachable (for OAuth redirect)
 # e.g. http://localhost:8080 or https://tootkeeper.example.com
 APP_URL = os.environ.get("APP_URL", "http://localhost:8080")
+
+# AI provider for roast generation (optional)
+# Supported: anthropic, openai, gemini, openai-compatible
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "")
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
+AI_MODEL = os.environ.get("AI_MODEL", "")
+AI_BASE_URL = os.environ.get("AI_BASE_URL", "")  # For openai-compatible providers (e.g. Ollama)

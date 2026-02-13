@@ -29,3 +29,27 @@ async function triggerSync() {
         btn.textContent = 'Sync Now';
     }
 }
+
+async function regenerateRoast() {
+    const btn = document.getElementById('roast-btn');
+    const list = document.getElementById('roast-list');
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        const response = await fetch('/api/roast', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.roasts && data.roasts.length > 0) {
+            list.innerHTML = data.roasts.map(line => '<li>' + line + '</li>').join('');
+        } else {
+            list.innerHTML = '<li>AI could not generate a roast. Check your API settings.</li>';
+        }
+    } catch (err) {
+        list.innerHTML = '<li>Failed to generate roast: ' + err.message + '</li>';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Roast Me Again';
+    }
+}

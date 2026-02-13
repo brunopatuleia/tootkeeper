@@ -18,6 +18,7 @@ from app.database import (
     get_bookmarks,
     get_db,
     get_favorites,
+    generate_roast,
     get_hashtag_counts,
     get_notifications,
     get_setting,
@@ -180,13 +181,14 @@ def _require_setup(request: Request) -> RedirectResponse | None:
 # ─── OAuth / Setup ────────────────────────────────────────────────
 
 @app.get("/setup", response_class=HTMLResponse)
-async def setup_page(request: Request, error: str = ""):
+async def setup_page(request: Request, error: str = "", ai_saved: str = ""):
     with get_db() as conn:
         settings = get_all_settings(conn)
     return templates.TemplateResponse("setup.html", {
         "request": request,
         "settings": settings,
         "error": error,
+        "ai_saved": bool(ai_saved),
     })
 
 
@@ -310,6 +312,29 @@ async def auth_logout():
     return RedirectResponse(url="/setup", status_code=302)
 
 
+@app.post("/settings/ai")
+async def save_ai_settings(request: Request):
+    """Save AI provider settings."""
+    form = await request.form()
+    with get_db() as conn:
+        for key in ("ai_provider", "ai_api_key", "ai_model", "ai_base_url"):
+            value = str(form.get(key, "")).strip()
+            set_setting(conn, key, value)
+        # Clear cached roast so next dashboard load generates fresh
+        conn.execute("DELETE FROM app_settings WHERE key IN ('roast_cache', 'roast_cache_time')")
+    return RedirectResponse(url="/setup?ai_saved=1", status_code=302)
+
+
+@app.post("/api/roast")
+async def api_regenerate_roast():
+    """Force-regenerate the AI roast."""
+    with get_db() as conn:
+        roasts = generate_roast(conn, force=True)
+    if not roasts:
+        return JSONResponse({"status": "error", "message": "AI not configured or API call failed"}, status_code=400)
+    return JSONResponse({"status": "ok", "roasts": roasts})
+
+
 # ─── Main pages ───────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -322,12 +347,14 @@ async def index(request: Request):
         toots, _ = get_toots(conn, page=1, per_page=10)
         notifs, _ = get_notifications(conn, page=1, per_page=10)
         settings = get_all_settings(conn)
+        roasts = generate_roast(conn)
     return templates.TemplateResponse("index.html", {
         "request": request,
         "stats": stats,
         "recent_toots": toots,
         "recent_notifications": notifs,
         "account": settings,
+        "roasts": roasts,
     })
 
 
