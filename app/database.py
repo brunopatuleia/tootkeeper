@@ -515,9 +515,14 @@ def _collect_roast_stats(conn: sqlite3.Connection) -> dict:
     }
 
 
-def _build_roast_prompt(stats: dict) -> str:
+def _build_roast_prompt(stats: dict, history: list[str] = None) -> str:
     """Build the prompt to send to the AI for roast generation."""
     sample_text = "\n".join(f"- {t}" for t in stats.get("sample_recent_toots", [])[:10])
+    if history:
+        history_lines = "\n".join(f"- {h}" for h in history[-15:])
+        history_section = f"IMPORTANT: Do NOT repeat or rephrase any of these previously used roasts:\n{history_lines}"
+    else:
+        history_section = ""
     return f"""You are a savage comedy roast writer. Analyze this Mastodon user's posting stats and write a brutal, hilarious roast. Be creative, specific, and merciless. Don't hold back.
 
 STATS:
@@ -534,7 +539,9 @@ STATS:
 SAMPLE RECENT TOOTS:
 {sample_text}
 
-Write exactly 5-8 roast lines. Each line should be a standalone burn. Be savage but funny. Reference their actual content and habits. End with one line roasting them for building an app to archive all this.
+Write exactly 8-12 roast lines. Each line should be a standalone burn. Be savage but funny. Reference their actual content and habits. Include one line roasting them for building an app to archive all this.
+
+{history_section}
 
 Return ONLY the roast lines, one per line, no numbering, no bullets, no other text."""
 
@@ -608,47 +615,103 @@ def _get_ai_config(conn: sqlite3.Connection) -> tuple[str, str, str, str] | None
     return provider, api_key, model, base_url
 
 
-def generate_roast(conn: sqlite3.Connection, force: bool = False) -> list[str]:
-    """Generate a roast using AI. Returns cached version if available. Returns [] if AI not configured."""
+def _get_roast_history(conn: sqlite3.Connection) -> list[str]:
+    """Get roast lines shown in the last 30 days."""
     import time
-
-    # Check if AI is configured
-    ai_config = _get_ai_config(conn)
-    if not ai_config:
+    raw = get_setting(conn, "roast_history")
+    if not raw:
+        return []
+    try:
+        entries = json.loads(raw)
+        cutoff = time.time() - 30 * 86400
+        # Each entry is {"text": "...", "ts": 1234567890}
+        valid = [e for e in entries if e.get("ts", 0) > cutoff]
+        if len(valid) != len(entries):
+            set_setting(conn, "roast_history", json.dumps(valid))
+        return [e["text"] for e in valid]
+    except (json.JSONDecodeError, TypeError):
         return []
 
-    # Check cache (valid for 24 hours)
-    if not force:
-        cached = get_setting(conn, "roast_cache")
-        cache_time = get_setting(conn, "roast_cache_time")
-        if cached and cache_time:
-            try:
-                if time.time() - float(cache_time) < 86400:
-                    return json.loads(cached)
-            except (ValueError, json.JSONDecodeError):
-                pass
 
-    # Collect stats
-    stats = _collect_roast_stats(conn)
-    if stats["total_toots"] == 0:
-        return []
+def _add_to_roast_history(conn: sqlite3.Connection, text: str):
+    """Add a roast line to the shown history."""
+    import time
+    raw = get_setting(conn, "roast_history")
+    try:
+        entries = json.loads(raw) if raw else []
+    except (json.JSONDecodeError, TypeError):
+        entries = []
+    entries.append({"text": text, "ts": time.time()})
+    # Keep max 50 entries
+    entries = entries[-50:]
+    set_setting(conn, "roast_history", json.dumps(entries))
 
-    # Call AI
+
+def _fetch_roast_pool(conn: sqlite3.Connection, ai_config, stats, history) -> list[str]:
+    """Call AI to get a fresh batch of roasts."""
     provider, api_key, model, base_url = ai_config
-    prompt = _build_roast_prompt(stats)
+    prompt = _build_roast_prompt(stats, history=history)
     response = _call_ai_api(provider, api_key, model, base_url, prompt)
-
     if not response:
         return []
-
-    # Parse response into lines
     lines = [line.strip() for line in response.strip().split("\n") if line.strip()]
-
-    # Cache the result
-    set_setting(conn, "roast_cache", json.dumps(lines))
-    set_setting(conn, "roast_cache_time", str(time.time()))
-
+    # Filter out any that are already in history
+    history_set = set(history)
+    lines = [l for l in lines if l not in history_set]
+    set_setting(conn, "roast_pool", json.dumps(lines))
     return lines
+
+
+def generate_roast(conn: sqlite3.Connection, force: bool = False) -> str | None:
+    """Return a single roast line. Returns None if AI not configured."""
+    ai_config = _get_ai_config(conn)
+    if not ai_config:
+        return None
+
+    # On normal dashboard load, return the current roast
+    if not force:
+        current = get_setting(conn, "roast_current")
+        if current:
+            return current
+
+    # Get history of shown roasts (last 30 days)
+    history = _get_roast_history(conn)
+
+    # Try to pick from existing pool
+    pool_raw = get_setting(conn, "roast_pool")
+    pool = []
+    if pool_raw:
+        try:
+            pool = json.loads(pool_raw)
+        except (json.JSONDecodeError, TypeError):
+            pool = []
+
+    # Filter pool against history
+    history_set = set(history)
+    available = [r for r in pool if r not in history_set]
+
+    # If pool is empty, fetch new batch
+    if not available:
+        stats = _collect_roast_stats(conn)
+        if stats["total_toots"] == 0:
+            return None
+        available = _fetch_roast_pool(conn, ai_config, stats, history)
+
+    if not available:
+        return None
+
+    # Pick the first available roast
+    chosen = available[0]
+
+    # Remove it from pool
+    remaining = available[1:]
+    set_setting(conn, "roast_pool", json.dumps(remaining))
+
+    # Save as current and add to history
+    set_setting(conn, "roast_current", chosen)
+    _add_to_roast_history(conn, chosen)
+
+    return chosen
 
 
 def get_topic_counts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:

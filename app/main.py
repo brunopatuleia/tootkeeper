@@ -319,8 +319,8 @@ async def save_ai_settings(request: Request):
         for key in ("ai_provider", "ai_api_key", "ai_model", "ai_base_url"):
             value = str(form.get(key, "")).strip()
             set_setting(conn, key, value)
-        # Clear cached roast so next dashboard load generates fresh
-        conn.execute("DELETE FROM app_settings WHERE key IN ('roast_cache', 'roast_cache_time')")
+        # Clear cached roast data so next dashboard load generates fresh
+        conn.execute("DELETE FROM app_settings WHERE key IN ('roast_current', 'roast_pool')")
     return RedirectResponse(url="/settings?saved=1", status_code=302)
 
 
@@ -328,10 +328,10 @@ async def save_ai_settings(request: Request):
 async def api_regenerate_roast():
     """Force-regenerate the AI roast."""
     with get_db() as conn:
-        roasts = generate_roast(conn, force=True)
-    if not roasts:
+        roast = generate_roast(conn, force=True)
+    if not roast:
         return JSONResponse({"status": "error", "message": "AI not configured or API call failed"}, status_code=400)
-    return JSONResponse({"status": "ok", "roasts": roasts})
+    return JSONResponse({"status": "ok", "roast": roast})
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -361,14 +361,14 @@ async def index(request: Request):
         toots, _ = get_toots(conn, page=1, per_page=10)
         notifs, _ = get_notifications(conn, page=1, per_page=10)
         settings = get_all_settings(conn)
-        roasts = generate_roast(conn)
+        roast = generate_roast(conn)
     return templates.TemplateResponse("index.html", {
         "request": request,
         "stats": stats,
         "recent_toots": toots,
         "recent_notifications": notifs,
         "account": settings,
-        "roasts": roasts,
+        "roast": roast,
     })
 
 

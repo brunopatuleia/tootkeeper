@@ -32,7 +32,7 @@ async function triggerSync() {
 
 async function regenerateRoast() {
     const btn = document.getElementById('roast-btn');
-    const list = document.getElementById('roast-list');
+    const text = document.getElementById('roast-text');
 
     btn.disabled = true;
     btn.textContent = 'Generating...';
@@ -41,13 +41,13 @@ async function regenerateRoast() {
         const response = await fetch('/api/roast', { method: 'POST' });
         const data = await response.json();
 
-        if (data.roasts && data.roasts.length > 0) {
-            list.innerHTML = data.roasts.map(line => '<li>' + line + '</li>').join('');
+        if (data.roast) {
+            text.textContent = data.roast;
         } else {
-            list.innerHTML = '<li>AI could not generate a roast. Check your API settings.</li>';
+            text.textContent = 'AI could not generate a roast. Check your API settings.';
         }
     } catch (err) {
-        list.innerHTML = '<li>Failed to generate roast: ' + err.message + '</li>';
+        text.textContent = 'Failed to generate roast: ' + err.message;
     } finally {
         btn.disabled = false;
         btn.textContent = 'Roast Me Again';

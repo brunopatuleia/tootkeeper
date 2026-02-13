@@ -764,25 +764,11 @@ h2 {
     cursor: not-allowed;
 }
 
-.roast-list {
-    list-style: none;
-    padding: 0;
-}
-
-.roast-list li {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(244, 67, 54, 0.15);
+.roast-text {
     color: var(--text);
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-.roast-list li:last-child {
-    border-bottom: none;
-}
-
-.roast-list li::before {
-    content: "\1F525 ";
+    font-size: 1.05rem;
+    line-height: 1.6;
+    padding: 0.5rem 0;
 }
 
 .roast-disclaimer {
