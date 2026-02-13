@@ -9,8 +9,11 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Archive everything** - Toots, boosts, replies, notifications, favorites, bookmarks
 - **Media downloads** - Saves images locally so they're preserved even if the original is deleted
 - **Full-text search** - SQLite FTS5 powered search across all your archived content
+- **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
+- **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama)
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
+- **Settings page** - Configure AI provider, manage account, all from the web UI
 - **Dark UI** - Clean, responsive web interface
 - **Any instance** - Works with any Mastodon-compatible server
 - **Docker-ready** - Single container, just `docker compose up`
@@ -58,6 +61,12 @@ Edit `.env` if you need to change the default settings:
 | `POLL_INTERVAL` | `5` | How often to check for new activity (in minutes) |
 | `DB_PATH` | `/app/data/tootkeeper.db` | Where the database is stored inside the container |
 | `MEDIA_PATH` | `/app/data/media` | Where downloaded images are stored inside the container |
+| `AI_PROVIDER` | *(disabled)* | AI provider for roast: `anthropic`, `openai`, `gemini`, or `openai-compatible` |
+| `AI_API_KEY` | | Your AI provider API key |
+| `AI_MODEL` | *(auto)* | Model to use (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o`, `gemini-2.0-flash`) |
+| `AI_BASE_URL` | | Only for `openai-compatible` (e.g. `http://localhost:11434/v1` for Ollama) |
+
+AI settings can also be configured from the **Settings** page in the web UI.
 
 If you're running on a remote server, set `APP_URL` to the server's address (e.g. `http://your-server-ip:8080`).
 
