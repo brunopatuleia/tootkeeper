@@ -845,3 +845,25 @@ h2 {
     display: flex;
     gap: 0.5rem;
 }
+
+/* Tools page */
+.tools-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.tools-status-header h2 {
+    margin-bottom: 0;
+}
+
+.pu-field {
+    padding: 0.4rem 0;
+    font-size: 0.9rem;
+}
+
+.pu-field-label {
+    color: var(--text-muted);
+    font-weight: 600;
+}

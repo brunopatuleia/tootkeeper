@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Tools - Tootkeeper{% endblock %}
+
+{% block content %}
+<h1>Tools</h1>
+
+{% if saved %}
+<div class="sync-status done" style="display:block; margin-bottom: 1rem;">Settings saved!</div>
+{% endif %}
+
+<div class="settings-grid">
+    <!-- Status -->
+    <div class="settings-section">
+        <div class="tools-status-header">
+            <h2>Profile Updater</h2>
+            <span id="pu-badge" class="badge {{ 'badge-reblog' if status.running else 'badge-bookmark' }}">
+                {{ 'Running' if status.running else 'Stopped' }}
+            </span>
+        </div>
+        <p class="setup-hint" style="margin-bottom: 1rem;">Automatically updates your Mastodon profile fields with what you're listening to, watching, or reading.</p>
+
+        {% if status.error %}
+        <div class="error-msg" style="margin-bottom: 1rem;">{{ status.error }}</div>
+        {% endif %}
+
+        <div id="pu-status-fields">
+            {% if status.last_track %}
+            <div class="pu-field"><span class="pu-field-label">Music:</span> {{ status.last_track }}</div>
+            {% endif %}
+            {% if status.last_movie %}
+            <div class="pu-field"><span class="pu-field-label">Movie:</span> {{ status.last_movie }}</div>
+            {% endif %}
+            {% if status.last_book %}
+            <div class="pu-field"><span class="pu-field-label">Book:</span> {{ status.last_book }}</div>
+            {% endif %}
+        </div>
+
+        <div class="settings-actions" style="margin-top: 1rem;">
+            {% if status.running %}
+            <button class="btn btn-danger" onclick="toggleProfileUpdater('stop')">Stop</button>
+            {% else %}
+            <button class="btn btn-sync" onclick="toggleProfileUpdater('start')">Start</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Music Sources -->
+    <form action="/tools/save" method="post" class="setup-form" style="display:contents;">
+        <div class="settings-section">
+            <h2>Music Sources</h2>
+            <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If both are configured, Last.fm is tried first.</p>
+
+            <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
+            <label for="pu_lastfm_username">Username</label>
+            <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
+
+            <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
+            <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
+
+            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">ListenBrainz</h3>
+            <label for="pu_listenbrainz_username">Username</label>
+            <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
+
+            <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
+            <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
+
+            <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+            <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
+
+            <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+            <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
+        </div>
+
+        <!-- Movies -->
+        <div class="settings-section">
+            <h2>Movies (Letterboxd)</h2>
+            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Letterboxd RSS feed URL to show your latest watched movie.</p>
+
+            <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
+            <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">
+
+            <label for="pu_movie_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+            <input type="text" id="pu_movie_field_name" name="pu_movie_field_name" placeholder="LAST MOVIE" value="{{ settings.get('pu_movie_field_name', 'LAST MOVIE') }}">
+
+            <label for="pu_movie_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+            <input type="number" id="pu_movie_interval" name="pu_movie_interval" min="60" placeholder="21600" value="{{ settings.get('pu_movie_interval', '21600') }}">
+        </div>
+
+        <!-- Books -->
+        <div class="settings-section">
+            <h2>Books (Goodreads)</h2>
+            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Goodreads RSS feed URL to show your latest finished book.</p>
+
+            <label for="pu_goodreads_rss_url">RSS Feed URL</label>
+            <input type="text" id="pu_goodreads_rss_url" name="pu_goodreads_rss_url" placeholder="https://www.goodreads.com/user/updates_rss/YOUR_ID?key=YOUR_KEY" value="{{ settings.get('pu_goodreads_rss_url', '') }}">
+
+            <label for="pu_book_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+            <input type="text" id="pu_book_field_name" name="pu_book_field_name" placeholder="LAST BOOK" value="{{ settings.get('pu_book_field_name', 'LAST BOOK') }}">
+
+            <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+            <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
+        </div>
+
+        <!-- Behavior -->
+        <div class="settings-section">
+            <h2>Behavior</h2>
+
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" name="pu_show_emoji" value="1" {{ 'checked' if settings.get('pu_show_emoji', '1') == '1' }}>
+                Show emoji in profile fields
+            </label>
+
+            <label for="pu_offline_message" style="margin-top: 0.75rem;">Offline message</label>
+            <input type="text" id="pu_offline_message" name="pu_offline_message" placeholder="Nothing playing" value="{{ settings.get('pu_offline_message', 'Nothing playing') }}">
+
+            <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save Settings</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleProfileUpdater(action) {
+    fetch('/api/tools/' + action, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                location.reload();
+            } else {
+                alert(data.message || 'Action failed');
+            }
+        })
+        .catch(() => alert('Request failed'));
+}
+</script>
+{% endblock %}

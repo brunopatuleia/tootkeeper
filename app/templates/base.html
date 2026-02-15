@@ -19,6 +19,7 @@
             <a href="/bookmarks" class="{% if request.url.path == '/bookmarks' %}active{% endif %}">Bookmarks</a>
             <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
+            <a href="/tools" class="{% if request.url.path == '/tools' %}active{% endif %}">Tools</a>
         </div>
         <form class="nav-search" action="/search" method="get">
             <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">

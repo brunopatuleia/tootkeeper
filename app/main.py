@@ -13,6 +13,7 @@ from mastodon import Mastodon
 
 from app.collector import run_full_sync
 from app.config import APP_URL, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL
+from app.profile_updater import ProfileUpdater
 from app.database import (
     get_all_settings,
     get_bookmarks,
@@ -39,10 +40,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 APP_DIR = Path(__file__).parent
-OAUTH_SCOPES = "read"
+OAUTH_SCOPES = "read write:accounts"
 
 scheduler = BackgroundScheduler()
 sync_lock = threading.Lock()
+profile_updater = ProfileUpdater()
 
 
 def _get_credentials() -> tuple[str, str] | None:
@@ -100,8 +102,14 @@ async def lifespan(app: FastAPI):
     logger.info(f"Poll interval: {POLL_INTERVAL} minutes")
     _start_scheduler()
 
+    # Start profile updater if enabled
+    with get_db() as conn:
+        if get_setting(conn, "pu_enabled") == "1" and is_configured(conn):
+            profile_updater.start()
+
     yield
 
+    profile_updater.stop()
     if scheduler.running:
         scheduler.shutdown(wait=False)
 
@@ -522,3 +530,71 @@ async def api_sync():
         return JSONResponse({"status": "not_configured"}, status_code=400)
     threading.Thread(target=_run_sync_job, daemon=True).start()
     return JSONResponse({"status": "started"})
+
+
+# ─── Tools (Profile Updater) ─────────────────────────────────────
+
+PU_SETTINGS_KEYS = [
+    "pu_lastfm_username", "pu_lastfm_api_key",
+    "pu_listenbrainz_username", "pu_listenbrainz_token",
+    "pu_letterboxd_rss_url", "pu_goodreads_rss_url",
+    "pu_music_field_name", "pu_movie_field_name", "pu_book_field_name",
+    "pu_music_interval", "pu_movie_interval", "pu_book_interval",
+    "pu_offline_message",
+]
+
+
+@app.get("/tools", response_class=HTMLResponse)
+async def tools_page(request: Request, saved: str = ""):
+    redirect = _require_setup(request)
+    if redirect:
+        return redirect
+    with get_db() as conn:
+        settings = get_all_settings(conn)
+    return templates.TemplateResponse("tools.html", {
+        "request": request,
+        "settings": settings,
+        "status": profile_updater.get_status(),
+        "saved": bool(saved),
+    })
+
+
+@app.post("/tools/save")
+async def tools_save(request: Request):
+    form = await request.form()
+    with get_db() as conn:
+        for key in PU_SETTINGS_KEYS:
+            value = str(form.get(key, "")).strip()
+            set_setting(conn, key, value)
+        # Checkbox: absent from form means unchecked
+        set_setting(conn, "pu_show_emoji", "1" if form.get("pu_show_emoji") else "0")
+        set_setting(conn, "pu_enabled", "1")
+
+    # Restart the updater with new settings
+    profile_updater.stop()
+    profile_updater.start()
+
+    return RedirectResponse(url="/tools?saved=1", status_code=302)
+
+
+@app.post("/api/tools/start")
+async def api_tools_start():
+    if profile_updater.running:
+        return JSONResponse({"status": "ok", "message": "Already running"})
+    with get_db() as conn:
+        set_setting(conn, "pu_enabled", "1")
+    profile_updater.start()
+    return JSONResponse({"status": "ok"})
+
+
+@app.post("/api/tools/stop")
+async def api_tools_stop():
+    profile_updater.stop()
+    with get_db() as conn:
+        set_setting(conn, "pu_enabled", "0")
+    return JSONResponse({"status": "ok"})
+
+
+@app.get("/api/tools/status")
+async def api_tools_status():
+    return JSONResponse(profile_updater.get_status())
