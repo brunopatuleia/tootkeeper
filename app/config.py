@@ -1,5 +1,8 @@
 import os
 
+VERSION = "1.1.0"
+GITHUB_REPO = "brunopatuleia/tootkeeper"
+
 # These env vars are optional — OAuth flow via the web UI is the primary method.
 # If set, they serve as fallback/override (useful for headless/automated setups).
 MASTODON_INSTANCE = os.environ.get("MASTODON_INSTANCE", "")

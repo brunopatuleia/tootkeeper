@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from mastodon import Mastodon
 
 from app.collector import run_full_sync
-from app.config import APP_URL, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL
+from app.config import APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL, VERSION
 from app.profile_updater import ProfileUpdater
 from app.database import (
     get_all_settings,
@@ -355,6 +355,35 @@ async def settings_page(request: Request, saved: str = ""):
         "settings": settings,
         "saved": bool(saved),
         "poll_interval": POLL_INTERVAL,
+        "version": VERSION,
+    })
+
+
+@app.get("/api/version")
+async def api_version():
+    """Check for updates by comparing local version with latest GitHub tag."""
+    import urllib.request
+
+    current = VERSION
+    latest = None
+    update_available = False
+
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/tags?per_page=1"
+        req = urllib.request.Request(url, headers={"User-Agent": "Tootkeeper"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            import json as _json
+            tags = _json.loads(resp.read())
+            if tags:
+                latest = tags[0]["name"].lstrip("v")
+                update_available = latest != current
+    except Exception:
+        pass
+
+    return JSONResponse({
+        "current": current,
+        "latest": latest,
+        "update_available": update_available,
     })
 
 
@@ -541,6 +570,13 @@ PU_SETTINGS_KEYS = [
     "pu_music_field_name", "pu_movie_field_name", "pu_book_field_name",
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",
     "pu_offline_message",
+    "pu_custom_field_name", "pu_custom_field_value",
+    "pu_field_order",
+]
+
+PU_CHECKBOX_KEYS = [
+    "pu_music_enabled", "pu_movies_enabled", "pu_books_enabled",
+    "pu_custom_enabled", "pu_show_emoji",
 ]
 
 
@@ -566,8 +602,9 @@ async def tools_save(request: Request):
         for key in PU_SETTINGS_KEYS:
             value = str(form.get(key, "")).strip()
             set_setting(conn, key, value)
-        # Checkbox: absent from form means unchecked
-        set_setting(conn, "pu_show_emoji", "1" if form.get("pu_show_emoji") else "0")
+        # Checkboxes: absent from form means unchecked
+        for key in PU_CHECKBOX_KEYS:
+            set_setting(conn, key, "1" if form.get(key) else "0")
         set_setting(conn, "pu_enabled", "1")
 
     # Restart the updater with new settings
@@ -598,3 +635,14 @@ async def api_tools_stop():
 @app.get("/api/tools/status")
 async def api_tools_status():
     return JSONResponse(profile_updater.get_status())
+
+
+@app.post("/api/tools/order")
+async def api_tools_order(request: Request):
+    """Save the field display order."""
+    data = await request.json()
+    order = data.get("order", [])
+    if order:
+        with get_db() as conn:
+            set_setting(conn, "pu_field_order", ",".join(order))
+    return JSONResponse({"status": "ok"})

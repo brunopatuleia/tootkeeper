@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Tools - Tootkeeper{% endblock %}
 
+{% set field_order = settings.get('pu_field_order', 'music,movies,books,custom').split(',') %}
+
 {% block content %}
 <h1>Tools</h1>
 
@@ -17,7 +19,8 @@
                 {{ 'Running' if status.running else 'Stopped' }}
             </span>
         </div>
-        <p class="setup-hint" style="margin-bottom: 1rem;">Automatically updates your Mastodon profile fields with what you're listening to, watching, or reading.</p>
+        <p class="setup-hint" style="margin-bottom: 0.5rem;">Automatically updates your Mastodon profile fields with what you're listening to, watching, or reading.</p>
+        <p class="setup-hint" style="margin-bottom: 1rem; color: var(--orange);">Mastodon allows a maximum of 4 profile fields. This tool can use up to 4 of them (music, movies, books, custom). Enable only what you need to leave room for other fields.</p>
 
         {% if status.error %}
         <div class="error-msg" style="margin-bottom: 1rem;">{{ status.error }}</div>
@@ -33,6 +36,9 @@
             {% if status.last_book %}
             <div class="pu-field"><span class="pu-field-label">Book:</span> {{ status.last_book }}</div>
             {% endif %}
+            {% if status.last_custom %}
+            <div class="pu-field"><span class="pu-field-label">Custom:</span> {{ status.last_custom }}</div>
+            {% endif %}
         </div>
 
         <div class="settings-actions" style="margin-top: 1rem;">
@@ -44,61 +50,119 @@
         </div>
     </div>
 
-    <!-- Music Sources -->
     <form action="/tools/save" method="post" class="setup-form" style="display:contents;">
-        <div class="settings-section">
-            <h2>Music Sources</h2>
-            <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If both are configured, Last.fm is tried first.</p>
+        <input type="hidden" name="pu_field_order" id="pu_field_order" value="{{ settings.get('pu_field_order', 'music,movies,books,custom') }}">
 
-            <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
-            <label for="pu_lastfm_username">Username</label>
-            <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
+        <p class="setup-hint" style="margin-bottom: 0.5rem;">Drag sections to reorder how fields appear on your Mastodon profile.</p>
 
-            <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
-            <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
+        <div id="sortable-container">
+            {% for section_key in field_order %}
 
-            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">ListenBrainz</h3>
-            <label for="pu_listenbrainz_username">Username</label>
-            <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
+            {% if section_key.strip() == 'music' %}
+            <!-- Music Sources -->
+            <div class="settings-section sortable-section" data-key="music" draggable="true">
+                <label class="pu-section-toggle">
+                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                    <input type="checkbox" name="pu_music_enabled" value="1" {{ 'checked' if settings.get('pu_music_enabled', '0') == '1' }} onchange="toggleSection('music-fields', this.checked)">
+                    <h2>Music</h2>
+                </label>
 
-            <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
-            <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
+                <div id="music-fields" style="{{ '' if settings.get('pu_music_enabled', '0') == '1' else 'display:none;' }}">
+                    <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If both are configured, Last.fm is tried first.</p>
 
-            <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-            <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
+                    <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
+                    <label for="pu_lastfm_username">Username</label>
+                    <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
 
-            <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-            <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
-        </div>
+                    <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
+                    <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
 
-        <!-- Movies -->
-        <div class="settings-section">
-            <h2>Movies (Letterboxd)</h2>
-            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Letterboxd RSS feed URL to show your latest watched movie.</p>
+                    <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">ListenBrainz</h3>
+                    <label for="pu_listenbrainz_username">Username</label>
+                    <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
 
-            <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
-            <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">
+                    <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
+                    <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
 
-            <label for="pu_movie_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-            <input type="text" id="pu_movie_field_name" name="pu_movie_field_name" placeholder="LAST MOVIE" value="{{ settings.get('pu_movie_field_name', 'LAST MOVIE') }}">
+                    <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                    <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
 
-            <label for="pu_movie_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-            <input type="number" id="pu_movie_interval" name="pu_movie_interval" min="60" placeholder="21600" value="{{ settings.get('pu_movie_interval', '21600') }}">
-        </div>
+                    <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                    <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
+                </div>
+            </div>
+            {% endif %}
 
-        <!-- Books -->
-        <div class="settings-section">
-            <h2>Books (Goodreads)</h2>
-            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Goodreads RSS feed URL to show your latest finished book.</p>
+            {% if section_key.strip() == 'movies' %}
+            <!-- Movies -->
+            <div class="settings-section sortable-section" data-key="movies" draggable="true">
+                <label class="pu-section-toggle">
+                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                    <input type="checkbox" name="pu_movies_enabled" value="1" {{ 'checked' if settings.get('pu_movies_enabled', '0') == '1' }} onchange="toggleSection('movies-fields', this.checked)">
+                    <h2>Movies (Letterboxd)</h2>
+                </label>
 
-            <label for="pu_goodreads_rss_url">RSS Feed URL</label>
-            <input type="text" id="pu_goodreads_rss_url" name="pu_goodreads_rss_url" placeholder="https://www.goodreads.com/user/updates_rss/YOUR_ID?key=YOUR_KEY" value="{{ settings.get('pu_goodreads_rss_url', '') }}">
+                <div id="movies-fields" style="{{ '' if settings.get('pu_movies_enabled', '0') == '1' else 'display:none;' }}">
+                    <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Letterboxd RSS feed URL to show your latest watched movie.</p>
 
-            <label for="pu_book_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-            <input type="text" id="pu_book_field_name" name="pu_book_field_name" placeholder="LAST BOOK" value="{{ settings.get('pu_book_field_name', 'LAST BOOK') }}">
+                    <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
+                    <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">
 
-            <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-            <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
+                    <label for="pu_movie_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                    <input type="text" id="pu_movie_field_name" name="pu_movie_field_name" placeholder="LAST MOVIE" value="{{ settings.get('pu_movie_field_name', 'LAST MOVIE') }}">
+
+                    <label for="pu_movie_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                    <input type="number" id="pu_movie_interval" name="pu_movie_interval" min="60" placeholder="21600" value="{{ settings.get('pu_movie_interval', '21600') }}">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if section_key.strip() == 'books' %}
+            <!-- Books -->
+            <div class="settings-section sortable-section" data-key="books" draggable="true">
+                <label class="pu-section-toggle">
+                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                    <input type="checkbox" name="pu_books_enabled" value="1" {{ 'checked' if settings.get('pu_books_enabled', '0') == '1' }} onchange="toggleSection('books-fields', this.checked)">
+                    <h2>Books (Goodreads)</h2>
+                </label>
+
+                <div id="books-fields" style="{{ '' if settings.get('pu_books_enabled', '0') == '1' else 'display:none;' }}">
+                    <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Goodreads RSS feed URL to show your latest finished book.</p>
+
+                    <label for="pu_goodreads_rss_url">RSS Feed URL</label>
+                    <input type="text" id="pu_goodreads_rss_url" name="pu_goodreads_rss_url" placeholder="https://www.goodreads.com/user/updates_rss/YOUR_ID?key=YOUR_KEY" value="{{ settings.get('pu_goodreads_rss_url', '') }}">
+
+                    <label for="pu_book_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                    <input type="text" id="pu_book_field_name" name="pu_book_field_name" placeholder="LAST BOOK" value="{{ settings.get('pu_book_field_name', 'LAST BOOK') }}">
+
+                    <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                    <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if section_key.strip() == 'custom' %}
+            <!-- Custom Field -->
+            <div class="settings-section sortable-section" data-key="custom" draggable="true">
+                <label class="pu-section-toggle">
+                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                    <input type="checkbox" name="pu_custom_enabled" value="1" {{ 'checked' if settings.get('pu_custom_enabled', '0') == '1' }} onchange="toggleSection('custom-fields', this.checked)">
+                    <h2>Custom Field</h2>
+                </label>
+
+                <div id="custom-fields" style="{{ '' if settings.get('pu_custom_enabled', '0') == '1' else 'display:none;' }}">
+                    <p class="setup-hint" style="margin-bottom: 1rem;">Add a custom profile field with any text you want.</p>
+
+                    <label for="pu_custom_field_name">Profile field name</label>
+                    <input type="text" id="pu_custom_field_name" name="pu_custom_field_name" placeholder="e.g. STATUS, WEBSITE, PRONOUNS" value="{{ settings.get('pu_custom_field_name', '') }}">
+
+                    <label for="pu_custom_field_value" style="margin-top: 0.75rem;">Value</label>
+                    <input type="text" id="pu_custom_field_value" name="pu_custom_field_value" placeholder="e.g. Available for work, https://mysite.com" value="{{ settings.get('pu_custom_field_value', '') }}">
+                </div>
+            </div>
+            {% endif %}
+
+            {% endfor %}
         </div>
 
         <!-- Behavior -->
@@ -119,6 +183,10 @@
 </div>
 
 <script>
+function toggleSection(id, show) {
+    document.getElementById(id).style.display = show ? '' : 'none';
+}
+
 function toggleProfileUpdater(action) {
     fetch('/api/tools/' + action, { method: 'POST' })
         .then(r => r.json())
@@ -131,5 +199,55 @@ function toggleProfileUpdater(action) {
         })
         .catch(() => alert('Request failed'));
 }
+
+// Drag-and-drop sorting
+(function() {
+    var container = document.getElementById('sortable-container');
+    var dragItem = null;
+
+    container.addEventListener('dragstart', function(e) {
+        var section = e.target.closest('.sortable-section');
+        if (!section) return;
+        dragItem = section;
+        section.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    container.addEventListener('dragend', function(e) {
+        if (dragItem) {
+            dragItem.classList.remove('dragging');
+            dragItem = null;
+            updateOrder();
+        }
+    });
+
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var target = e.target.closest('.sortable-section');
+        if (!target || target === dragItem) return;
+
+        var rect = target.getBoundingClientRect();
+        var midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            container.insertBefore(dragItem, target);
+        } else {
+            container.insertBefore(dragItem, target.nextSibling);
+        }
+    });
+
+    function updateOrder() {
+        var sections = container.querySelectorAll('.sortable-section');
+        var order = [];
+        sections.forEach(function(s) { order.push(s.dataset.key); });
+        document.getElementById('pu_field_order').value = order.join(',');
+        // Also persist immediately via API
+        fetch('/api/tools/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: order })
+        });
+    }
+})();
 </script>
 {% endblock %}

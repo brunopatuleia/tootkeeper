@@ -110,15 +110,35 @@ To get an access token, go to your instance's **Preferences > Development > New 
 
 ## Profile Updater (Tools Tab)
 
-The **Tools** tab lets you automatically update your Mastodon profile fields with what you're currently consuming:
+The **Tools** tab lets you automatically update your Mastodon profile fields with what you're currently consuming. It supports three media sources plus a custom user-defined field:
 
-| Source | What it shows | Example |
-|--------|--------------|---------|
-| **Last.fm** / **ListenBrainz** | Currently playing music | 🎵 Radiohead - Karma Police |
-| **Letterboxd** | Last watched movie with rating | 🎬 Oppenheimer (2023) - ★★★★½ |
-| **Goodreads** | Last finished book with rating | 📚 Dune by Frank Herbert - ★★★★★ |
+### Music (Last.fm / ListenBrainz)
 
-Configure your sources in the Tools page — just enter your usernames/API keys and RSS feed URLs. The updater runs as a background thread and only updates your profile when the content actually changes.
+Shows what you're currently listening to or your most recent track. Supports two music services with automatic fallback — if one is down, the other takes over. Checks every 60 seconds by default.
+
+**Example:** 🎵 Radiohead - Karma Police
+
+### Movies (Letterboxd)
+
+Shows the last movie you watched, pulled from your public Letterboxd RSS feed. Includes the year and your star rating if you rated it. Checks every 6 hours by default.
+
+**Example:** 🎬 Oppenheimer (2023) - ★★★★½
+
+### Books (Goodreads)
+
+Shows the last book you finished and rated, pulled from your Goodreads RSS feed. Includes the author and your star rating. Checks every 6 hours by default.
+
+**Example:** 📚 Dune by Frank Herbert - ★★★★★
+
+### Custom Field
+
+A user-defined field that you can set to any static text — useful for a status, a link, or anything else you want to display on your profile.
+
+### Setup
+
+Each source can be individually enabled or disabled with a checkbox in the Tools page. Just enter your usernames, API keys, and RSS feed URLs for the sources you want to use. The updater runs as a background thread and only updates your profile when the content actually changes.
+
+> **Note:** Mastodon profiles allow a maximum of **4 metadata fields**. The profile updater can use up to 3 of those fields (music, movies, books) plus 1 custom field — which means it could occupy all 4 slots. Keep this in mind if you also use profile fields for other things like your website or pronouns. You can enable only the sources you need to leave room for your other fields.
 
 ## What Gets Archived
 

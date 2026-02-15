@@ -183,6 +183,7 @@ class ProfileUpdater:
         self.last_track_info: str | None = None
         self.last_movie_info: str | None = None
         self.last_book_info: str | None = None
+        self.last_custom_info: str | None = None
         self.last_music_update: float = 0
         self.last_movie_update: float = 0
         self.last_book_update: float = 0
@@ -210,6 +211,7 @@ class ProfileUpdater:
             "last_track": self.last_track_info,
             "last_movie": self.last_movie_info,
             "last_book": self.last_book_info,
+            "last_custom": self.last_custom_info,
             "last_music_update": self.last_music_update,
             "last_movie_update": self.last_movie_update,
             "last_book_update": self.last_book_update,
@@ -217,28 +219,35 @@ class ProfileUpdater:
         }
 
     def _build_clients(self, settings: dict) -> tuple:
-        """Build music clients, letterboxd, goodreads from settings."""
+        """Build music clients, letterboxd, goodreads from settings (only if enabled)."""
         music_clients = []
 
-        # Last.fm
-        lfm_user = settings.get("pu_lastfm_username", "").strip()
-        lfm_key = settings.get("pu_lastfm_api_key", "").strip()
-        if lfm_user and lfm_key:
-            music_clients.append(LastFmClient(lfm_key, lfm_user))
+        if settings.get("pu_music_enabled") == "1":
+            # Last.fm
+            lfm_user = settings.get("pu_lastfm_username", "").strip()
+            lfm_key = settings.get("pu_lastfm_api_key", "").strip()
+            if lfm_user and lfm_key:
+                music_clients.append(LastFmClient(lfm_key, lfm_user))
 
-        # ListenBrainz
-        lb_user = settings.get("pu_listenbrainz_username", "").strip()
-        lb_token = settings.get("pu_listenbrainz_token", "").strip()
-        if lb_user:
-            music_clients.append(ListenBrainzClient(lb_user, lb_token or None))
+            # ListenBrainz
+            lb_user = settings.get("pu_listenbrainz_username", "").strip()
+            lb_token = settings.get("pu_listenbrainz_token", "").strip()
+            if lb_user:
+                music_clients.append(ListenBrainzClient(lb_user, lb_token or None))
 
         # Letterboxd
-        lb_rss = settings.get("pu_letterboxd_rss_url", "").strip()
-        letterboxd = LetterboxdClient(lb_rss) if lb_rss else None
+        letterboxd = None
+        if settings.get("pu_movies_enabled") == "1":
+            lb_rss = settings.get("pu_letterboxd_rss_url", "").strip()
+            if lb_rss:
+                letterboxd = LetterboxdClient(lb_rss)
 
         # Goodreads
-        gr_rss = settings.get("pu_goodreads_rss_url", "").strip()
-        goodreads = GoodreadsClient(gr_rss) if gr_rss else None
+        goodreads = None
+        if settings.get("pu_books_enabled") == "1":
+            gr_rss = settings.get("pu_goodreads_rss_url", "").strip()
+            if gr_rss:
+                goodreads = GoodreadsClient(gr_rss)
 
         return music_clients, letterboxd, goodreads
 
@@ -249,25 +258,54 @@ class ProfileUpdater:
             return None
         return Mastodon(access_token=token, api_base_url=instance)
 
-    def _update_profile_field(self, client: Mastodon, field_name: str, content: str) -> bool:
+    def _update_profile_fields(self, client: Mastodon, managed_fields: dict[str, str]) -> bool:
+        """Update multiple profile fields in a single API call.
+
+        managed_fields: dict of {field_name: value} for fields this tool manages.
+        Preserves non-managed fields and respects the configured field order.
+        """
         try:
             account = client.account_verify_credentials()
             current_fields = account.get("fields", [])
-            new_fields = []
-            updated = False
-            for field in current_fields:
-                if field["name"] == field_name:
-                    new_fields.append({"name": field_name, "value": content})
-                    updated = True
-                else:
-                    new_fields.append({"name": field["name"], "value": field["value"]})
-            if not updated:
-                new_fields.append({"name": field_name, "value": content})
+            managed_names = set(managed_fields.keys())
+
+            # Keep non-managed fields in their current positions
+            other_fields = [
+                {"name": f["name"], "value": f["value"]}
+                for f in current_fields
+                if f["name"] not in managed_names
+            ]
+
+            # Build ordered managed fields based on pu_field_order
+            with get_db() as conn:
+                settings = get_all_settings(conn)
+            order_str = settings.get("pu_field_order", "music,movies,books,custom")
+            ordered_managed = []
+            for key in order_str.split(","):
+                key = key.strip()
+                field_name = None
+                if key == "music":
+                    field_name = _s(settings, "pu_music_field_name")
+                elif key == "movies":
+                    field_name = _s(settings, "pu_movie_field_name")
+                elif key == "books":
+                    field_name = _s(settings, "pu_book_field_name")
+                elif key == "custom":
+                    field_name = settings.get("pu_custom_field_name", "").strip()
+                if field_name and field_name in managed_fields:
+                    ordered_managed.append({"name": field_name, "value": managed_fields[field_name]})
+
+            # Combine: managed fields first (in order), then other fields
+            new_fields = ordered_managed + other_fields
+
+            # Mastodon max 4 fields
+            new_fields = new_fields[:4]
+
             fields_tuples = [(f["name"], f["value"]) for f in new_fields]
             client.account_update_credentials(fields=fields_tuples)
             return True
         except MastodonError as e:
-            logger.error(f"Failed to update profile field '{field_name}': {e}")
+            logger.error(f"Failed to update profile fields: {e}")
             return False
 
     def _format_track(self, track: dict | None, settings: dict) -> str:
@@ -300,14 +338,15 @@ class ProfileUpdater:
 
             music_clients, letterboxd, goodreads = self._build_clients(settings)
             mastodon = self._get_mastodon_client(settings)
+            custom_enabled = settings.get("pu_custom_enabled") == "1"
 
             if not mastodon:
                 self.error = "Mastodon not configured"
                 self.running = False
                 return
 
-            if not music_clients and not letterboxd and not goodreads:
-                self.error = "No sources configured"
+            if not music_clients and not letterboxd and not goodreads and not custom_enabled:
+                self.error = "No sources enabled"
                 self.running = False
                 return
 
@@ -316,9 +355,20 @@ class ProfileUpdater:
             book_interval = int(_s(settings, "pu_book_interval"))
             loop_interval = min(music_interval, 60)
 
+            # Set custom field on first run
+            if custom_enabled:
+                name = settings.get("pu_custom_field_name", "").strip()
+                value = settings.get("pu_custom_field_value", "").strip()
+                if name and value:
+                    self.last_custom_info = value
+
+            # First iteration: do an initial update with all fields
+            needs_update = True
+
             while not self._stop_event.is_set():
                 try:
                     now = time.time()
+                    changed = False
 
                     # Music update
                     if music_clients and now - self.last_music_update >= music_interval:
@@ -329,10 +379,9 @@ class ProfileUpdater:
                                 break
                         track_info = self._format_track(track, settings)
                         if track_info != self.last_track_info:
-                            field = _s(settings, "pu_music_field_name")
-                            if self._update_profile_field(mastodon, field, track_info):
-                                self.last_track_info = track_info
-                                logger.info(f"Music updated: {track_info}")
+                            self.last_track_info = track_info
+                            changed = True
+                            logger.info(f"Music changed: {track_info}")
                         self.last_music_update = now
 
                     # Movie update
@@ -340,10 +389,9 @@ class ProfileUpdater:
                         movie = letterboxd.get_recent_movie()
                         movie_info = self._format_movie(movie, settings)
                         if movie_info != self.last_movie_info:
-                            field = _s(settings, "pu_movie_field_name")
-                            if self._update_profile_field(mastodon, field, movie_info):
-                                self.last_movie_info = movie_info
-                                logger.info(f"Movie updated: {movie_info}")
+                            self.last_movie_info = movie_info
+                            changed = True
+                            logger.info(f"Movie changed: {movie_info}")
                         self.last_movie_update = now
 
                     # Book update
@@ -351,11 +399,27 @@ class ProfileUpdater:
                         book = goodreads.get_finished_book()
                         book_info = self._format_book(book, settings)
                         if book_info != self.last_book_info:
-                            field = _s(settings, "pu_book_field_name")
-                            if self._update_profile_field(mastodon, field, book_info):
-                                self.last_book_info = book_info
-                                logger.info(f"Book updated: {book_info}")
+                            self.last_book_info = book_info
+                            changed = True
+                            logger.info(f"Book changed: {book_info}")
                         self.last_book_update = now
+
+                    # Push all managed fields in one API call when anything changes
+                    if changed or needs_update:
+                        managed = {}
+                        if self.last_track_info:
+                            managed[_s(settings, "pu_music_field_name")] = self.last_track_info
+                        if self.last_movie_info:
+                            managed[_s(settings, "pu_movie_field_name")] = self.last_movie_info
+                        if self.last_book_info:
+                            managed[_s(settings, "pu_book_field_name")] = self.last_book_info
+                        if self.last_custom_info:
+                            name = settings.get("pu_custom_field_name", "").strip()
+                            if name:
+                                managed[name] = self.last_custom_info
+                        if managed:
+                            self._update_profile_fields(mastodon, managed)
+                        needs_update = False
 
                 except Exception as e:
                     logger.error(f"Profile updater loop error: {e}", exc_info=True)
