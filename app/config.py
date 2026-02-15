@@ -13,8 +13,8 @@ DB_PATH = os.environ.get("DB_PATH", "/app/data/tootkeeper.db")
 MEDIA_PATH = os.environ.get("MEDIA_PATH", "/app/data/media")
 
 # The external URL where this app is reachable (for OAuth redirect)
-# e.g. http://localhost:8080 or https://tootkeeper.example.com
-APP_URL = os.environ.get("APP_URL", "http://localhost:8080")
+# e.g. http://localhost:6886 or https://tootkeeper.example.com
+APP_URL = os.environ.get("APP_URL", "http://localhost:6886")
 
 # AI provider for roast generation (optional)
 # Supported: anthropic, openai, gemini, openai-compatible

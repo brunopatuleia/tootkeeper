@@ -58,7 +58,7 @@ Edit `.env` if you need to change the default settings:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_URL` | `http://localhost:8080` | The URL where Tootkeeper is reachable (important for OAuth) |
+| `APP_URL` | `http://localhost:6886` | The URL where Tootkeeper is reachable (important for OAuth) |
 | `POLL_INTERVAL` | `5` | How often to check for new activity (in minutes) |
 | `DB_PATH` | `/app/data/tootkeeper.db` | Where the database is stored inside the container |
 | `MEDIA_PATH` | `/app/data/media` | Where downloaded images are stored inside the container |
@@ -67,9 +67,11 @@ Edit `.env` if you need to change the default settings:
 | `AI_MODEL` | *(auto)* | Model to use (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o`, `gemini-2.0-flash`) |
 | `AI_BASE_URL` | | Only for `openai-compatible` (e.g. `http://localhost:11434/v1` for Ollama) |
 
+**Important:** If you run the app on a different port (e.g. `8080`), you **must** update `APP_URL` (e.g. `http://localhost:8080`) so the OAuth login redirects back to the correct place.
+
 AI settings can also be configured from the **Settings** page in the web UI.
 
-If you're running on a remote server, set `APP_URL` to the server's address (e.g. `http://your-server-ip:8080`).
+If you're running on a remote server, set `APP_URL` to the server's address (e.g. `http://your-server-ip:6886`).
 
 ### Step 4: Start Tootkeeper
 
@@ -81,7 +83,7 @@ This builds the container and starts it in the background. First run may take a 
 
 ### Step 5: Connect your Mastodon account
 
-1. Open `http://localhost:8080` in your browser (or your server's IP)
+1. Open `http://localhost:6886` in your browser (or your server's IP)
 2. Enter your Mastodon instance domain (e.g. `mastodon.social`, `fosstodon.org`)
 3. Click **Login with Mastodon**
 4. You'll be redirected to your instance to authorize access (read + write:accounts for profile updates)
