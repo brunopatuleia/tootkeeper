@@ -56,14 +56,15 @@ def _get_credentials() -> tuple[str, str] | None:
 
 
 def _run_sync_job():
-    if sync_lock.locked():
+    if not sync_lock.acquire(blocking=False):
         logger.info("Sync already running, skipping.")
         return
-    with sync_lock:
-        try:
-            run_full_sync()
-        except Exception:
-            logger.exception("Scheduled sync failed")
+    try:
+        run_full_sync()
+    except Exception:
+        logger.exception("Scheduled sync failed")
+    finally:
+        sync_lock.release()
 
 
 def _start_scheduler():

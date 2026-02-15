@@ -42,7 +42,7 @@ def _get_extension(url: str) -> str:
     """Extract file extension from URL."""
     path = urlparse(url).path
     ext = os.path.splitext(path)[1]
-    return ext if ext else ".jpg"
+    return ext.lower() if ext else ".jpg"
 
 
 def download_media(status: dict):
@@ -116,7 +116,7 @@ def _fetch_all_pages(fetch_func, since_id=None, limit=40):
 
     while page:
         prev_page = page
-        page = fetch_func(max_id=prev_page[-1]["id"] - 1, limit=limit)
+        page = fetch_func(max_id=int(prev_page[-1]["id"]) - 1, limit=limit)
         if not page:
             break
         # If we have a since_id and go past it, stop
