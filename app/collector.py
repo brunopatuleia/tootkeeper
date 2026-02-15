@@ -96,7 +96,7 @@ def _download_file(url: str, dest: Path):
         logger.debug(f"Failed to download {url}")
 
 
-def _fetch_all_pages(fetch_func, since_id=None, limit=40):
+def _fetch_all_pages(fetch_func, client=None, since_id=None, limit=40, stop_on_id=True):
     """Fetch all pages from a paginated Mastodon API endpoint.
 
     When since_id is None (first historical sync), fetches everything with no page limit.
@@ -104,23 +104,42 @@ def _fetch_all_pages(fetch_func, since_id=None, limit=40):
     """
     all_items = []
     kwargs = {"limit": limit}
-    if since_id:
+    if since_id and stop_on_id:
         kwargs["since_id"] = since_id
 
     page = fetch_func(**kwargs)
     if not page:
-        return all_items
+        return all_items, None
+
+    # Try to get new cursor (min_id) from the first page
+    new_cursor = None
+    if isinstance(page, list) and hasattr(page, '_pagination_prev'):
+        new_cursor = page._pagination_prev.get('min_id')
 
     all_items.extend(page)
     pages_fetched = 1
 
     while page:
-        prev_page = page
-        page = fetch_func(max_id=int(prev_page[-1]["id"]) - 1, limit=limit)
+        if client:
+            if hasattr(page, '_pagination_next'):
+                page = client.fetch_next(page)
+            else:
+                page = []
+        else:
+            prev_page = page
+            next_max_id = None
+            if isinstance(prev_page, list) and hasattr(prev_page, '_pagination_next'):
+                next_max_id = prev_page._pagination_next.get('max_id')
+            
+            if next_max_id:
+                page = fetch_func(max_id=next_max_id, limit=limit)
+            else:
+                page = fetch_func(max_id=int(prev_page[-1]["id"]) - 1, limit=limit)
+
         if not page:
             break
         # If we have a since_id and go past it, stop
-        if since_id:
+        if since_id and stop_on_id:
             page = [item for item in page if int(item["id"]) > int(since_id)]
             if not page:
                 break
@@ -132,7 +151,7 @@ def _fetch_all_pages(fetch_func, since_id=None, limit=40):
 
         time.sleep(0.3)  # Rate limiting
 
-    return all_items
+    return all_items, new_cursor
 
 
 def sync_toots(client: Mastodon):
@@ -147,7 +166,7 @@ def sync_toots(client: Mastodon):
     def fetch(**kwargs):
         return client.account_statuses(account_id, **kwargs)
 
-    statuses = _fetch_all_pages(fetch, since_id=since_id)
+    statuses, _ = _fetch_all_pages(fetch, client=client, since_id=since_id)
     if not statuses:
         logger.info("No new toots found.")
         return 0
@@ -174,7 +193,7 @@ def sync_notifications(client: Mastodon):
     def fetch(**kwargs):
         return client.notifications(**kwargs)
 
-    notifs = _fetch_all_pages(fetch, since_id=since_id)
+    notifs, _ = _fetch_all_pages(fetch, client=client, since_id=since_id)
     if not notifs:
         logger.info("No new notifications found.")
         return 0
@@ -195,12 +214,14 @@ def sync_favorites(client: Mastodon):
     logger.info("Syncing favorites...")
 
     with get_db() as conn:
-        since_id = get_sync_state(conn, "favorites_since_id")
+        cursor = get_sync_state(conn, "favorites_cursor")
 
     def fetch(**kwargs):
+        if cursor:
+            kwargs["min_id"] = cursor
         return client.favourites(**kwargs)
 
-    favs = _fetch_all_pages(fetch, since_id=since_id)
+    favs, new_cursor = _fetch_all_pages(fetch, client=None, stop_on_id=False)
     if not favs:
         logger.info("No new favorites found.")
         return 0
@@ -209,9 +230,9 @@ def sync_favorites(client: Mastodon):
         for fav in favs:
             upsert_favorite(conn, fav)
             download_media(fav)
-        newest_id = str(max(int(f["id"]) for f in favs))
-        if not since_id or int(newest_id) > int(since_id):
-            set_sync_state(conn, "favorites_since_id", newest_id)
+        
+        if new_cursor:
+            set_sync_state(conn, "favorites_cursor", new_cursor)
 
     logger.info(f"Synced {len(favs)} favorites.")
     return len(favs)
@@ -222,12 +243,14 @@ def sync_bookmarks(client: Mastodon):
     logger.info("Syncing bookmarks...")
 
     with get_db() as conn:
-        since_id = get_sync_state(conn, "bookmarks_since_id")
+        cursor = get_sync_state(conn, "bookmarks_cursor")
 
     def fetch(**kwargs):
+        if cursor:
+            kwargs["min_id"] = cursor
         return client.bookmarks(**kwargs)
 
-    bmarks = _fetch_all_pages(fetch, since_id=since_id)
+    bmarks, new_cursor = _fetch_all_pages(fetch, client=None, stop_on_id=False)
     if not bmarks:
         logger.info("No new bookmarks found.")
         return 0
@@ -236,9 +259,9 @@ def sync_bookmarks(client: Mastodon):
         for bm in bmarks:
             upsert_bookmark(conn, bm)
             download_media(bm)
-        newest_id = str(max(int(b["id"]) for b in bmarks))
-        if not since_id or int(newest_id) > int(since_id):
-            set_sync_state(conn, "bookmarks_since_id", newest_id)
+        
+        if new_cursor:
+            set_sync_state(conn, "bookmarks_cursor", new_cursor)
 
     logger.info(f"Synced {len(bmarks)} bookmarks.")
     return len(bmarks)
