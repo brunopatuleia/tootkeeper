@@ -53,3 +53,26 @@ async function regenerateRoast() {
         btn.textContent = 'Roast Me Again';
     }
 }
+
+async function checkVersion() {
+    const container = document.getElementById('version-check');
+    if (!container) return;
+
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+
+        if (data.update_available) {
+            container.innerHTML = `
+                <div style="margin-top: 10px; padding: 10px; border: 1px solid var(--accent); border-radius: 6px; background: rgba(255,255,255,0.05);">
+                    <strong style="color: var(--accent);">Update available: v${data.latest}</strong><br>
+                    <small>You are on v${data.current}. <a href="https://github.com/brunopatuleia/tootkeeper" target="_blank" style="color: inherit; text-decoration: underline;">View on GitHub</a></small>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error('Failed to check version:', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', checkVersion);
