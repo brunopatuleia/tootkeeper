@@ -10,10 +10,11 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Media downloads** - Saves images locally so they're preserved even if the original is deleted
 - **Full-text search** - SQLite FTS5 powered search across all your archived content
 - **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
+- **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz), last-watched movie (Letterboxd), and last-read book (Goodreads)
 - **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama)
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
-- **Settings page** - Configure AI provider, manage account, all from the web UI
+- **Tools & Settings** - Configure profile updater, AI provider, manage account, all from the web UI
 - **Dark UI** - Clean, responsive web interface
 - **Any instance** - Works with any Mastodon-compatible server
 - **Docker-ready** - Single container, just `docker compose up`
@@ -83,7 +84,7 @@ This builds the container and starts it in the background. First run may take a 
 1. Open `http://localhost:8080` in your browser (or your server's IP)
 2. Enter your Mastodon instance domain (e.g. `mastodon.social`, `fosstodon.org`)
 3. Click **Login with Mastodon**
-4. You'll be redirected to your instance to authorize read-only access
+4. You'll be redirected to your instance to authorize access (read + write:accounts for profile updates)
 5. After authorizing, Tootkeeper starts archiving your full history immediately
 
 That's it! Tootkeeper will continue syncing new activity every 5 minutes.
@@ -105,7 +106,19 @@ MASTODON_INSTANCE=https://mastodon.social
 MASTODON_ACCESS_TOKEN=your_access_token_here
 ```
 
-To get an access token, go to your instance's **Preferences > Development > New application**, create an app with `read` scope, and copy the access token.
+To get an access token, go to your instance's **Preferences > Development > New application**, create an app with `read write:accounts` scopes, and copy the access token.
+
+## Profile Updater (Tools Tab)
+
+The **Tools** tab lets you automatically update your Mastodon profile fields with what you're currently consuming:
+
+| Source | What it shows | Example |
+|--------|--------------|---------|
+| **Last.fm** / **ListenBrainz** | Currently playing music | 🎵 Radiohead - Karma Police |
+| **Letterboxd** | Last watched movie with rating | 🎬 Oppenheimer (2023) - ★★★★½ |
+| **Goodreads** | Last finished book with rating | 📚 Dune by Frank Herbert - ★★★★★ |
+
+Configure your sources in the Tools page — just enter your usernames/API keys and RSS feed URLs. The updater runs as a background thread and only updates your profile when the content actually changes.
 
 ## What Gets Archived
 
