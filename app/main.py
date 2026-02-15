@@ -14,12 +14,12 @@ from mastodon import Mastodon
 from app.collector import run_full_sync
 from app.config import APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL, VERSION
 from app.profile_updater import ProfileUpdater
+from app.roast import generate_roast
 from app.database import (
     get_all_settings,
     get_bookmarks,
     get_db,
     get_favorites,
-    generate_roast,
     get_hashtag_counts,
     get_notifications,
     get_setting,
@@ -32,6 +32,7 @@ from app.database import (
     set_setting,
 )
 from app.search import search
+import requests
 
 logging.basicConfig(
     level=logging.INFO,
@@ -362,23 +363,20 @@ async def settings_page(request: Request, saved: str = ""):
 @app.get("/api/version")
 async def api_version():
     """Check for updates by comparing local version with latest GitHub tag."""
-    import urllib.request
-
     current = VERSION
     latest = None
     update_available = False
 
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/tags?per_page=1"
-        req = urllib.request.Request(url, headers={"User-Agent": "Tootkeeper"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            import json as _json
-            tags = _json.loads(resp.read())
-            if tags:
-                latest = tags[0]["name"].lstrip("v")
-                update_available = latest != current
-    except Exception:
-        pass
+        response = requests.get(url, headers={"User-Agent": "Tootkeeper"}, timeout=5)
+        response.raise_for_status()
+        tags = response.json()
+        if tags:
+            latest = tags[0]["name"].lstrip("v")
+            update_available = latest != current
+    except (requests.RequestException, KeyError, IndexError):
+        logger.debug("Failed to check for updates on GitHub")
 
     return JSONResponse({
         "current": current,

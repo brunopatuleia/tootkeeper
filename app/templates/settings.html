@@ -66,8 +66,8 @@
         <p class="setup-hint" style="margin-top: 0.5rem;">Sync interval: every {{ poll_interval }} minutes</p>
         <p class="setup-hint" style="margin-top: 0.5rem;">
             Version: <strong>{{ version }}</strong>
-            <span id="update-status" style="margin-left: 0.5rem;"></span>
         </p>
+        <div id="version-check"></div>
         <p class="setup-hint" style="margin-top: 0.5rem;">Built with vibe coding via <a href="https://claude.ai/claude-code" target="_blank">Claude Code</a>.</p>
     </div>
 </div>
@@ -78,18 +78,5 @@ function toggleAiFields() {
     document.getElementById('ai-fields').style.display = provider ? '' : 'none';
     document.getElementById('ai-base-url-row').style.display = provider === 'openai-compatible' ? '' : 'none';
 }
-
-// Check for updates
-fetch('/api/version')
-    .then(r => r.json())
-    .then(data => {
-        var el = document.getElementById('update-status');
-        if (data.update_available) {
-            el.innerHTML = '<span style="color: var(--orange);">Update available: v' + data.latest + '</span>';
-        } else if (data.latest) {
-            el.innerHTML = '<span style="color: var(--green);">Up to date</span>';
-        }
-    })
-    .catch(function() {});
 </script>
 {% endblock %}

@@ -69,6 +69,8 @@ async function checkVersion() {
                     <small>You are on v${data.current}. <a href="https://github.com/brunopatuleia/tootkeeper" target="_blank" style="color: inherit; text-decoration: underline;">View on GitHub</a></small>
                 </div>
             `;
+        } else if (data.latest) {
+            container.innerHTML = `<small style="color: var(--green); display: block; margin-top: 5px;">You are up to date (v${data.current})</small>`;
         }
     } catch (err) {
         console.error('Failed to check version:', err);
