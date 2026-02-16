@@ -10,7 +10,7 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Media downloads** - Saves images locally so they're preserved even if the original is deleted
 - **Full-text search** - SQLite FTS5 powered search across all your archived content
 - **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
-- **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz), last-watched movie (Letterboxd), and last-read book (Goodreads)
+- **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz/Navidrome), last-watched movie (Letterboxd), and last-read book (Goodreads)
 - **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama)
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
@@ -114,9 +114,9 @@ To get an access token, go to your instance's **Preferences > Development > New 
 
 The **Tools** tab lets you automatically update your Mastodon profile fields with what you're currently consuming. It supports three media sources plus a custom user-defined field:
 
-### Music (Last.fm / ListenBrainz)
+### Music (Last.fm / ListenBrainz / Navidrome)
 
-Shows what you're currently listening to or your most recent track. Supports two music services with automatic fallback — if one is down, the other takes over. Checks every 60 seconds by default.
+Shows what you're currently listening to or your most recent track. Supports three music services with automatic fallback — if one is down, the next takes over. Checks every 60 seconds by default. When nothing is playing, the last played track stays on your profile.
 
 **Example:** 🎵 Radiohead - Karma Police
 

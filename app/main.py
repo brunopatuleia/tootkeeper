@@ -564,6 +564,7 @@ async def api_sync():
 PU_SETTINGS_KEYS = [
     "pu_lastfm_username", "pu_lastfm_api_key",
     "pu_listenbrainz_username", "pu_listenbrainz_token",
+    "pu_navidrome_url", "pu_navidrome_username", "pu_navidrome_password",
     "pu_letterboxd_rss_url", "pu_goodreads_rss_url",
     "pu_music_field_name", "pu_movie_field_name", "pu_book_field_name",
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",

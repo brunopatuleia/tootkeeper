@@ -68,7 +68,7 @@
                 </label>
 
                 <div id="music-fields" style="{{ '' if settings.get('pu_music_enabled', '0') == '1' else 'display:none;' }}">
-                    <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If both are configured, Last.fm is tried first.</p>
+                    <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If multiple are configured, they are tried in order: Last.fm, ListenBrainz, Navidrome.</p>
 
                     <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
                     <label for="pu_lastfm_username">Username</label>
@@ -83,6 +83,16 @@
 
                     <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
                     <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
+
+                    <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">Navidrome / Subsonic</h3>
+                    <label for="pu_navidrome_url">Server URL</label>
+                    <input type="text" id="pu_navidrome_url" name="pu_navidrome_url" placeholder="https://navidrome.example.com" value="{{ settings.get('pu_navidrome_url', '') }}">
+
+                    <label for="pu_navidrome_username" style="margin-top: 0.75rem;">Username</label>
+                    <input type="text" id="pu_navidrome_username" name="pu_navidrome_username" placeholder="Your Navidrome username" value="{{ settings.get('pu_navidrome_username', '') }}">
+
+                    <label for="pu_navidrome_password" style="margin-top: 0.75rem;">Password</label>
+                    <input type="password" id="pu_navidrome_password" name="pu_navidrome_password" placeholder="Your Navidrome password" value="{{ settings.get('pu_navidrome_password', '') }}">
 
                     <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
                     <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
@@ -173,9 +183,6 @@
                 <input type="checkbox" name="pu_show_emoji" value="1" {{ 'checked' if settings.get('pu_show_emoji', '1') == '1' }}>
                 Show emoji in profile fields
             </label>
-
-            <label for="pu_offline_message" style="margin-top: 0.75rem;">Offline message</label>
-            <input type="text" id="pu_offline_message" name="pu_offline_message" placeholder="Nothing playing" value="{{ settings.get('pu_offline_message', 'Nothing playing') }}">
 
             <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save Settings</button>
         </div>

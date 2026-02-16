@@ -5,7 +5,9 @@ last-watched movie, and last-read book.
 Adapted from the standalone mastodon_profile_update project.
 """
 
+import hashlib
 import logging
+import os
 import re
 import threading
 import time
@@ -86,6 +88,70 @@ class ListenBrainzClient:
             }
         except Exception as e:
             logger.error(f"ListenBrainz API failed: {e}")
+            return None
+
+
+class NavidromeClient:
+    """Fetches now-playing / recent track via the Subsonic API (Navidrome-compatible)."""
+
+    def __init__(self, server_url: str, username: str, password: str):
+        self.server_url = server_url.rstrip("/")
+        self.username = username
+        self.password = password
+
+    def _auth_params(self) -> dict:
+        salt = os.urandom(8).hex()
+        token = hashlib.md5((self.password + salt).encode()).hexdigest()
+        return {
+            "u": self.username,
+            "t": token,
+            "s": salt,
+            "v": "1.16.1",
+            "c": "tootkeeper",
+            "f": "json",
+        }
+
+    def get_recent_track(self) -> Optional[dict]:
+        try:
+            # Try getNowPlaying first
+            params = self._auth_params()
+            resp = requests.get(f"{self.server_url}/rest/getNowPlaying", params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("subsonic-response", {})
+            if data.get("status") != "ok":
+                logger.error(f"Navidrome API error: {data.get('error', {}).get('message', 'Unknown')}")
+                return None
+
+            entries = data.get("nowPlaying", {}).get("entry", [])
+            if entries:
+                entry = entries[0] if isinstance(entries, list) else entries
+                return {
+                    "artist": entry.get("artist", "Unknown Artist"),
+                    "title": entry.get("title", "Unknown Title"),
+                    "now_playing": True,
+                    "source": "navidrome",
+                }
+
+            # Nothing playing now — try getPlayQueue for last played
+            params = self._auth_params()
+            resp = requests.get(f"{self.server_url}/rest/getPlayQueue", params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("subsonic-response", {})
+            if data.get("status") == "ok":
+                pq = data.get("playQueue", {})
+                entries = pq.get("entry", [])
+                if entries:
+                    entry = entries[0] if isinstance(entries, list) else entries
+                    return {
+                        "artist": entry.get("artist", "Unknown Artist"),
+                        "title": entry.get("title", "Unknown Title"),
+                        "now_playing": False,
+                        "source": "navidrome",
+                    }
+
+            return None
+        except Exception as e:
+            logger.error(f"Navidrome API failed: {e}")
             return None
 
 
@@ -235,6 +301,13 @@ class ProfileUpdater:
             if lb_user:
                 music_clients.append(ListenBrainzClient(lb_user, lb_token or None))
 
+            # Navidrome (Subsonic API)
+            nd_url = settings.get("pu_navidrome_url", "").strip()
+            nd_user = settings.get("pu_navidrome_username", "").strip()
+            nd_pass = settings.get("pu_navidrome_password", "").strip()
+            if nd_url and nd_user and nd_pass:
+                music_clients.append(NavidromeClient(nd_url, nd_user, nd_pass))
+
         # Letterboxd
         letterboxd = None
         if settings.get("pu_movies_enabled") == "1":
@@ -308,10 +381,10 @@ class ProfileUpdater:
             logger.error(f"Failed to update profile fields: {e}")
             return False
 
-    def _format_track(self, track: dict | None, settings: dict) -> str:
-        emoji = "🎵 " if _s(settings, "pu_show_emoji") == "1" else ""
+    def _format_track(self, track: dict | None, settings: dict) -> str | None:
         if not track:
-            return f"{emoji}{_s(settings, 'pu_offline_message')}"
+            return None  # Keep showing the last played track
+        emoji = "🎵 " if _s(settings, "pu_show_emoji") == "1" else ""
         return f"{emoji}{track['artist']} - {track['title']}"
 
     def _format_movie(self, movie: dict | None, settings: dict) -> str:
@@ -378,7 +451,8 @@ class ProfileUpdater:
                             if track:
                                 break
                         track_info = self._format_track(track, settings)
-                        if track_info != self.last_track_info:
+                        # Only update if we got a track (None means nothing playing — keep last track)
+                        if track_info and track_info != self.last_track_info:
                             self.last_track_info = track_info
                             changed = True
                             logger.info(f"Music changed: {track_info}")
