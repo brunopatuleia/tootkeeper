@@ -14,7 +14,7 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama)
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
-- **Tools & Settings** - Configure profile updater, AI provider, manage account, all from the web UI
+- **Settings** - Configure profile updater, AI roast, manage account, check for updates — all from one page
 - **Dark UI** - Clean, responsive web interface
 - **Any instance** - Works with any Mastodon-compatible server
 - **Docker-ready** - Single container, just `docker compose up`
@@ -110,9 +110,9 @@ MASTODON_ACCESS_TOKEN=your_access_token_here
 
 To get an access token, go to your instance's **Preferences > Development > New application**, create an app with `read write:accounts` scopes, and copy the access token.
 
-## Profile Updater (Tools Tab)
+## Profile Updater
 
-The **Tools** tab lets you automatically update your Mastodon profile fields with what you're currently consuming. It supports three media sources plus a custom user-defined field:
+The **Settings** page includes a Profile Updater section that automatically updates your Mastodon profile fields with what you're currently consuming. It supports three media sources plus a custom user-defined field, with drag-and-drop reordering:
 
 ### Music (Last.fm / ListenBrainz / Navidrome)
 
@@ -138,7 +138,7 @@ A user-defined field that you can set to any static text — useful for a status
 
 ### Setup
 
-Each source can be individually enabled or disabled with a checkbox in the Tools page. Just enter your usernames, API keys, and RSS feed URLs for the sources you want to use. The updater runs as a background thread and only updates your profile when the content actually changes.
+Each source can be individually enabled or disabled with a checkbox in the Settings page. Drag and drop the sections to control the order fields appear on your Mastodon profile. Just enter your usernames, API keys, and RSS feed URLs for the sources you want to use. The updater runs as a background thread and only updates your profile when the content actually changes.
 
 > **Note:** Mastodon profiles allow a maximum of **4 metadata fields**. The profile updater can use up to 3 of those fields (music, movies, books) plus 1 custom field — which means it could occupy all 4 slots. Keep this in mind if you also use profile fields for other things like your website or pronouns. You can enable only the sources you need to leave room for your other fields.
 
