@@ -357,6 +357,7 @@ async def settings_page(request: Request, saved: str = ""):
         "saved": bool(saved),
         "poll_interval": POLL_INTERVAL,
         "version": VERSION,
+        "pu_status": profile_updater.get_status(),
     })
 
 
@@ -559,7 +560,7 @@ async def api_sync():
     return JSONResponse({"status": "started"})
 
 
-# ─── Tools (Profile Updater) ─────────────────────────────────────
+# ─── Profile Updater ─────────────────────────────────────────────
 
 PU_SETTINGS_KEYS = [
     "pu_lastfm_username", "pu_lastfm_api_key",
@@ -568,7 +569,6 @@ PU_SETTINGS_KEYS = [
     "pu_letterboxd_rss_url", "pu_goodreads_rss_url",
     "pu_music_field_name", "pu_movie_field_name", "pu_book_field_name",
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",
-    "pu_offline_message",
     "pu_custom_field_name", "pu_custom_field_value",
     "pu_field_order",
 ]
@@ -579,23 +579,14 @@ PU_CHECKBOX_KEYS = [
 ]
 
 
-@app.get("/tools", response_class=HTMLResponse)
-async def tools_page(request: Request, saved: str = ""):
-    redirect = _require_setup(request)
-    if redirect:
-        return redirect
-    with get_db() as conn:
-        settings = get_all_settings(conn)
-    return templates.TemplateResponse("tools.html", {
-        "request": request,
-        "settings": settings,
-        "status": profile_updater.get_status(),
-        "saved": bool(saved),
-    })
+@app.get("/tools")
+async def tools_redirect():
+    """Redirect old /tools URL to /settings."""
+    return RedirectResponse(url="/settings", status_code=301)
 
 
-@app.post("/tools/save")
-async def tools_save(request: Request):
+@app.post("/settings/profile-updater")
+async def settings_profile_updater(request: Request):
     form = await request.form()
     with get_db() as conn:
         for key in PU_SETTINGS_KEYS:
@@ -610,7 +601,7 @@ async def tools_save(request: Request):
     profile_updater.stop()
     profile_updater.start()
 
-    return RedirectResponse(url="/tools?saved=1", status_code=302)
+    return RedirectResponse(url="/settings?saved=1", status_code=302)
 
 
 @app.post("/api/tools/start")
