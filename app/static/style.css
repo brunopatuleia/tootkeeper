@@ -824,7 +824,89 @@ h2 {
     text-decoration: none;
 }
 
-/* Settings page */
+/* Settings page — sidebar layout */
+.settings-layout {
+    display: flex;
+    gap: 0;
+    min-height: calc(100vh - 60px);
+    margin: -1.5rem -2rem;
+}
+
+.settings-sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0;
+    position: sticky;
+    top: 52px;
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+}
+
+.settings-sidebar a {
+    display: block;
+    padding: 0.6rem 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+
+.settings-sidebar a:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.settings-sidebar a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.settings-sidebar .sidebar-heading {
+    display: block;
+    padding: 0.4rem 1.25rem 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    cursor: default;
+    border-left: none;
+}
+
+.settings-sidebar .sidebar-heading:first-child {
+    margin-top: 0;
+}
+
+.settings-sidebar .sidebar-heading:hover {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.settings-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 700px;
+}
+
+.settings-content h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
 .settings-grid {
     display: grid;
     gap: 1.5rem;
@@ -844,6 +926,48 @@ h2 {
 .settings-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .settings-layout {
+        flex-direction: column;
+        min-height: auto;
+        margin: -1rem;
+    }
+    .settings-sidebar {
+        width: 100%;
+        min-width: 100%;
+        position: static;
+        height: auto;
+        display: flex;
+        flex-wrap: wrap;
+        padding: 0.75rem;
+        gap: 0.25rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+    .settings-sidebar .sidebar-heading {
+        width: 100%;
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .settings-sidebar .sidebar-heading:first-child {
+        margin-top: 0;
+    }
+    .settings-sidebar a {
+        padding: 0.4rem 0.75rem;
+        border-radius: var(--radius);
+        border-left: none;
+        font-size: 0.85rem;
+    }
+    .settings-sidebar a.active {
+        background: var(--accent);
+        color: white;
+        border-left: none;
+    }
+    .settings-content {
+        padding: 1rem;
+    }
 }
 
 /* Tools page */

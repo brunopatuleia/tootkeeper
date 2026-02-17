@@ -4,258 +4,315 @@
 {% set field_order = settings.get('pu_field_order', 'music,movies,books,custom').split(',') %}
 
 {% block content %}
-<h1>Settings</h1>
-
 {% if saved %}
 <div class="sync-status done" style="display:block; margin-bottom: 1rem;">Settings saved!</div>
 {% endif %}
 
-<div class="settings-grid">
+<div class="settings-layout">
+    <!-- Sidebar -->
+    <nav class="settings-sidebar">
+        <span class="sidebar-heading">Account</span>
+        <a href="#account" data-panel="account" class="active">Profile</a>
 
-    <!-- ─── Account ─────────────────────────────────────────── -->
-    <div class="settings-section">
-        <h2>Account</h2>
-        {% if settings.get('account_acct') %}
-        <div class="account-info" style="margin-bottom: 1rem;">
-            {% if settings.get('account_avatar') %}
-            <img src="{{ settings.account_avatar }}" alt="" class="avatar-large">
-            {% endif %}
-            <div>
-                <strong>{{ settings.get('account_display_name', '') }}</strong>
-                <div class="acct">@{{ settings.account_acct }}@{{ settings.get('instance_url', '').replace('https://', '').replace('http://', '') }}</div>
+        <span class="sidebar-heading">Settings</span>
+        <a href="#ai-roast" data-panel="ai-roast">AI Roast</a>
+        <a href="#profile-updater" data-panel="profile-updater">Profile Updater</a>
+        <a href="#pu-sources" data-panel="pu-sources">Sources &amp; Fields</a>
+
+        <span class="sidebar-heading">App</span>
+        <a href="#about" data-panel="about">About</a>
+    </nav>
+
+    <!-- Content -->
+    <div class="settings-content">
+
+        <!-- ─── Account ─────────────────────────────────────────── -->
+        <div id="panel-account" class="settings-panel active">
+            <h1>Profile</h1>
+            <div class="settings-section">
+                {% if settings.get('account_acct') %}
+                <div class="account-info" style="margin-bottom: 1rem;">
+                    {% if settings.get('account_avatar') %}
+                    <img src="{{ settings.account_avatar }}" alt="" class="avatar-large">
+                    {% endif %}
+                    <div>
+                        <strong>{{ settings.get('account_display_name', '') }}</strong>
+                        <div class="acct">@{{ settings.account_acct }}@{{ settings.get('instance_url', '').replace('https://', '').replace('http://', '') }}</div>
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <a href="/auth/logout" class="btn btn-danger" onclick="return confirm('Disconnect your account? Your archived data will be kept.')">Disconnect</a>
+                </div>
+                {% else %}
+                <p class="setup-hint">No account connected. <a href="/setup">Set up your account</a>.</p>
+                {% endif %}
             </div>
         </div>
-        <div class="settings-actions">
-            <a href="/auth/logout" class="btn btn-danger" onclick="return confirm('Disconnect your account? Your archived data will be kept.')">Disconnect</a>
+
+        <!-- ─── AI Roast ────────────────────────────────────────── -->
+        <div id="panel-ai-roast" class="settings-panel">
+            <h1>AI Roast</h1>
+            <div class="settings-section">
+                <p class="setup-hint" style="margin-bottom: 1rem;">Connect an AI provider to get a personalized roast on your dashboard. Optional - leave disabled if you don't want it.</p>
+
+                <form action="/settings/ai" method="post" class="setup-form">
+                    <label for="ai_provider">Provider</label>
+                    <select id="ai_provider" name="ai_provider" class="select-input" onchange="toggleAiFields()">
+                        <option value="">Disabled</option>
+                        <option value="anthropic" {{ 'selected' if settings.get('ai_provider') == 'anthropic' }}>Anthropic (Claude)</option>
+                        <option value="openai" {{ 'selected' if settings.get('ai_provider') == 'openai' }}>OpenAI (GPT)</option>
+                        <option value="gemini" {{ 'selected' if settings.get('ai_provider') == 'gemini' }}>Google (Gemini)</option>
+                        <option value="openai-compatible" {{ 'selected' if settings.get('ai_provider') == 'openai-compatible' }}>OpenAI-Compatible (Ollama, etc.)</option>
+                    </select>
+
+                    <div id="ai-fields" style="{{ '' if settings.get('ai_provider') else 'display:none;' }}">
+                        <label for="ai_api_key" style="margin-top: 0.75rem;">API Key</label>
+                        <input type="password" id="ai_api_key" name="ai_api_key" placeholder="sk-..." value="{{ settings.get('ai_api_key', '') }}">
+
+                        <label for="ai_model" style="margin-top: 0.75rem;">Model <span class="setup-hint">(optional, uses sensible default)</span></label>
+                        <input type="text" id="ai_model" name="ai_model" placeholder="e.g. claude-sonnet-4-5-20250929, gpt-4o, gemini-2.0-flash" value="{{ settings.get('ai_model', '') }}">
+
+                        <div id="ai-base-url-row" style="{{ '' if settings.get('ai_provider') == 'openai-compatible' else 'display:none;' }}">
+                            <label for="ai_base_url" style="margin-top: 0.75rem;">Base URL</label>
+                            <input type="text" id="ai_base_url" name="ai_base_url" placeholder="http://localhost:11434/v1" value="{{ settings.get('ai_base_url', '') }}">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save AI Settings</button>
+                </form>
+            </div>
         </div>
-        {% else %}
-        <p class="setup-hint">No account connected. <a href="/setup">Set up your account</a>.</p>
-        {% endif %}
-    </div>
 
-    <!-- ─── AI Roast ────────────────────────────────────────── -->
-    <div class="settings-section">
-        <h2>AI Roast</h2>
-        <p class="setup-hint" style="margin-bottom: 1rem;">Connect an AI provider to get a personalized roast on your dashboard. Optional - leave disabled if you don't want it.</p>
+        <!-- ─── Profile Updater ─────────────────────────────────── -->
+        <div id="panel-profile-updater" class="settings-panel">
+            <h1>Profile Updater</h1>
+            <div class="settings-section">
+                <div class="tools-status-header">
+                    <h2>Status</h2>
+                    <span id="pu-badge" class="badge {{ 'badge-reblog' if pu_status.running else 'badge-bookmark' }}">
+                        {{ 'Running' if pu_status.running else 'Stopped' }}
+                    </span>
+                </div>
+                <p class="setup-hint" style="margin-bottom: 0.5rem;">Automatically updates your Mastodon profile fields with what you're listening to, watching, or reading.</p>
+                <p class="setup-hint" style="margin-bottom: 1rem; color: var(--orange);">Mastodon allows a maximum of 4 profile fields. Enable only what you need to leave room for other fields.</p>
 
-        <form action="/settings/ai" method="post" class="setup-form">
-            <label for="ai_provider">Provider</label>
-            <select id="ai_provider" name="ai_provider" class="select-input" onchange="toggleAiFields()">
-                <option value="">Disabled</option>
-                <option value="anthropic" {{ 'selected' if settings.get('ai_provider') == 'anthropic' }}>Anthropic (Claude)</option>
-                <option value="openai" {{ 'selected' if settings.get('ai_provider') == 'openai' }}>OpenAI (GPT)</option>
-                <option value="gemini" {{ 'selected' if settings.get('ai_provider') == 'gemini' }}>Google (Gemini)</option>
-                <option value="openai-compatible" {{ 'selected' if settings.get('ai_provider') == 'openai-compatible' }}>OpenAI-Compatible (Ollama, etc.)</option>
-            </select>
+                {% if pu_status.error %}
+                <div class="error-msg" style="margin-bottom: 1rem;">{{ pu_status.error }}</div>
+                {% endif %}
 
-            <div id="ai-fields" style="{{ '' if settings.get('ai_provider') else 'display:none;' }}">
-                <label for="ai_api_key" style="margin-top: 0.75rem;">API Key</label>
-                <input type="password" id="ai_api_key" name="ai_api_key" placeholder="sk-..." value="{{ settings.get('ai_api_key', '') }}">
+                <div id="pu-status-fields">
+                    {% if pu_status.last_track %}
+                    <div class="pu-field"><span class="pu-field-label">Music:</span> {{ pu_status.last_track }}</div>
+                    {% endif %}
+                    {% if pu_status.last_movie %}
+                    <div class="pu-field"><span class="pu-field-label">Movie:</span> {{ pu_status.last_movie }}</div>
+                    {% endif %}
+                    {% if pu_status.last_book %}
+                    <div class="pu-field"><span class="pu-field-label">Book:</span> {{ pu_status.last_book }}</div>
+                    {% endif %}
+                    {% if pu_status.last_custom %}
+                    <div class="pu-field"><span class="pu-field-label">Custom:</span> {{ pu_status.last_custom }}</div>
+                    {% endif %}
+                </div>
 
-                <label for="ai_model" style="margin-top: 0.75rem;">Model <span class="setup-hint">(optional, uses sensible default)</span></label>
-                <input type="text" id="ai_model" name="ai_model" placeholder="e.g. claude-sonnet-4-5-20250929, gpt-4o, gemini-2.0-flash" value="{{ settings.get('ai_model', '') }}">
-
-                <div id="ai-base-url-row" style="{{ '' if settings.get('ai_provider') == 'openai-compatible' else 'display:none;' }}">
-                    <label for="ai_base_url" style="margin-top: 0.75rem;">Base URL</label>
-                    <input type="text" id="ai_base_url" name="ai_base_url" placeholder="http://localhost:11434/v1" value="{{ settings.get('ai_base_url', '') }}">
+                <div class="settings-actions" style="margin-top: 1rem;">
+                    {% if pu_status.running %}
+                    <button class="btn btn-danger" onclick="toggleProfileUpdater('stop')">Stop</button>
+                    {% else %}
+                    <button class="btn btn-sync" onclick="toggleProfileUpdater('start')">Start</button>
+                    {% endif %}
                 </div>
             </div>
-
-            <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save AI Settings</button>
-        </form>
-    </div>
-
-    <!-- ─── Profile Updater ─────────────────────────────────── -->
-    <div class="settings-section">
-        <div class="tools-status-header">
-            <h2>Profile Updater</h2>
-            <span id="pu-badge" class="badge {{ 'badge-reblog' if pu_status.running else 'badge-bookmark' }}">
-                {{ 'Running' if pu_status.running else 'Stopped' }}
-            </span>
-        </div>
-        <p class="setup-hint" style="margin-bottom: 0.5rem;">Automatically updates your Mastodon profile fields with what you're listening to, watching, or reading.</p>
-        <p class="setup-hint" style="margin-bottom: 1rem; color: var(--orange);">Mastodon allows a maximum of 4 profile fields. This tool can use up to 4 of them (music, movies, books, custom). Enable only what you need to leave room for other fields.</p>
-
-        {% if pu_status.error %}
-        <div class="error-msg" style="margin-bottom: 1rem;">{{ pu_status.error }}</div>
-        {% endif %}
-
-        <div id="pu-status-fields">
-            {% if pu_status.last_track %}
-            <div class="pu-field"><span class="pu-field-label">Music:</span> {{ pu_status.last_track }}</div>
-            {% endif %}
-            {% if pu_status.last_movie %}
-            <div class="pu-field"><span class="pu-field-label">Movie:</span> {{ pu_status.last_movie }}</div>
-            {% endif %}
-            {% if pu_status.last_book %}
-            <div class="pu-field"><span class="pu-field-label">Book:</span> {{ pu_status.last_book }}</div>
-            {% endif %}
-            {% if pu_status.last_custom %}
-            <div class="pu-field"><span class="pu-field-label">Custom:</span> {{ pu_status.last_custom }}</div>
-            {% endif %}
         </div>
 
-        <div class="settings-actions" style="margin-top: 1rem;">
-            {% if pu_status.running %}
-            <button class="btn btn-danger" onclick="toggleProfileUpdater('stop')">Stop</button>
-            {% else %}
-            <button class="btn btn-sync" onclick="toggleProfileUpdater('start')">Start</button>
-            {% endif %}
-        </div>
-    </div>
+        <!-- ─── Sources & Fields ────────────────────────────────── -->
+        <div id="panel-pu-sources" class="settings-panel">
+            <h1>Sources &amp; Fields</h1>
 
-    <form action="/settings/profile-updater" method="post" class="setup-form" style="display:contents;">
-        <input type="hidden" name="pu_field_order" id="pu_field_order" value="{{ settings.get('pu_field_order', 'music,movies,books,custom') }}">
+            <form action="/settings/profile-updater" method="post" class="setup-form">
+                <input type="hidden" name="pu_field_order" id="pu_field_order" value="{{ settings.get('pu_field_order', 'music,movies,books,custom') }}">
 
-        <p class="setup-hint" style="margin-bottom: 0.5rem;">Drag sections to reorder how fields appear on your Mastodon profile.</p>
+                <p class="setup-hint" style="margin-bottom: 1rem;">Drag sections to reorder how fields appear on your Mastodon profile.</p>
 
-        <div id="sortable-container">
-            {% for section_key in field_order %}
+                <div id="sortable-container" class="settings-grid">
+                    {% for section_key in field_order %}
 
-            {% if section_key.strip() == 'music' %}
-            <!-- Music Sources -->
-            <div class="settings-section sortable-section" data-key="music" draggable="true">
-                <label class="pu-section-toggle">
-                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
-                    <input type="checkbox" name="pu_music_enabled" value="1" {{ 'checked' if settings.get('pu_music_enabled', '0') == '1' }} onchange="toggleSection('music-fields', this.checked)">
-                    <h2>Music</h2>
-                </label>
+                    {% if section_key.strip() == 'music' %}
+                    <div class="settings-section sortable-section" data-key="music" draggable="true">
+                        <label class="pu-section-toggle">
+                            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                            <input type="checkbox" name="pu_music_enabled" value="1" {{ 'checked' if settings.get('pu_music_enabled', '0') == '1' }} onchange="toggleSection('music-fields', this.checked)">
+                            <h2>Music</h2>
+                        </label>
 
-                <div id="music-fields" style="{{ '' if settings.get('pu_music_enabled', '0') == '1' else 'display:none;' }}">
-                    <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If multiple are configured, they are tried in order: Last.fm, ListenBrainz, Navidrome.</p>
+                        <div id="music-fields" style="{{ '' if settings.get('pu_music_enabled', '0') == '1' else 'display:none;' }}">
+                            <p class="setup-hint" style="margin-bottom: 1rem;">Configure at least one music source. If multiple are configured, they are tried in order: Last.fm, ListenBrainz, Navidrome.</p>
 
-                    <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
-                    <label for="pu_lastfm_username">Username</label>
-                    <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
+                            <h3 style="margin-top: 1rem; font-size: 0.95rem;">Last.fm</h3>
+                            <label for="pu_lastfm_username">Username</label>
+                            <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
 
-                    <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
-                    <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
+                            <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
+                            <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
 
-                    <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">ListenBrainz</h3>
-                    <label for="pu_listenbrainz_username">Username</label>
-                    <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
+                            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">ListenBrainz</h3>
+                            <label for="pu_listenbrainz_username">Username</label>
+                            <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
 
-                    <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
-                    <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
+                            <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
+                            <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
 
-                    <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">Navidrome / Subsonic</h3>
-                    <label for="pu_navidrome_url">Server URL</label>
-                    <input type="text" id="pu_navidrome_url" name="pu_navidrome_url" placeholder="https://navidrome.example.com" value="{{ settings.get('pu_navidrome_url', '') }}">
+                            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">Navidrome / Subsonic</h3>
+                            <label for="pu_navidrome_url">Server URL</label>
+                            <input type="text" id="pu_navidrome_url" name="pu_navidrome_url" placeholder="https://navidrome.example.com" value="{{ settings.get('pu_navidrome_url', '') }}">
 
-                    <label for="pu_navidrome_username" style="margin-top: 0.75rem;">Username</label>
-                    <input type="text" id="pu_navidrome_username" name="pu_navidrome_username" placeholder="Your Navidrome username" value="{{ settings.get('pu_navidrome_username', '') }}">
+                            <label for="pu_navidrome_username" style="margin-top: 0.75rem;">Username</label>
+                            <input type="text" id="pu_navidrome_username" name="pu_navidrome_username" placeholder="Your Navidrome username" value="{{ settings.get('pu_navidrome_username', '') }}">
 
-                    <label for="pu_navidrome_password" style="margin-top: 0.75rem;">Password</label>
-                    <input type="password" id="pu_navidrome_password" name="pu_navidrome_password" placeholder="Your Navidrome password" value="{{ settings.get('pu_navidrome_password', '') }}">
+                            <label for="pu_navidrome_password" style="margin-top: 0.75rem;">Password</label>
+                            <input type="password" id="pu_navidrome_password" name="pu_navidrome_password" placeholder="Your Navidrome password" value="{{ settings.get('pu_navidrome_password', '') }}">
 
-                    <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-                    <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
+                            <label for="pu_music_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                            <input type="text" id="pu_music_field_name" name="pu_music_field_name" placeholder="NOW PLAYING" value="{{ settings.get('pu_music_field_name', 'NOW PLAYING') }}">
 
-                    <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-                    <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
+                            <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                            <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if section_key.strip() == 'movies' %}
+                    <div class="settings-section sortable-section" data-key="movies" draggable="true">
+                        <label class="pu-section-toggle">
+                            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                            <input type="checkbox" name="pu_movies_enabled" value="1" {{ 'checked' if settings.get('pu_movies_enabled', '0') == '1' }} onchange="toggleSection('movies-fields', this.checked)">
+                            <h2>Movies (Letterboxd)</h2>
+                        </label>
+
+                        <div id="movies-fields" style="{{ '' if settings.get('pu_movies_enabled', '0') == '1' else 'display:none;' }}">
+                            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Letterboxd RSS feed URL to show your latest watched movie.</p>
+
+                            <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
+                            <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">
+
+                            <label for="pu_movie_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                            <input type="text" id="pu_movie_field_name" name="pu_movie_field_name" placeholder="LAST MOVIE" value="{{ settings.get('pu_movie_field_name', 'LAST MOVIE') }}">
+
+                            <label for="pu_movie_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                            <input type="number" id="pu_movie_interval" name="pu_movie_interval" min="60" placeholder="21600" value="{{ settings.get('pu_movie_interval', '21600') }}">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if section_key.strip() == 'books' %}
+                    <div class="settings-section sortable-section" data-key="books" draggable="true">
+                        <label class="pu-section-toggle">
+                            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                            <input type="checkbox" name="pu_books_enabled" value="1" {{ 'checked' if settings.get('pu_books_enabled', '0') == '1' }} onchange="toggleSection('books-fields', this.checked)">
+                            <h2>Books (Goodreads)</h2>
+                        </label>
+
+                        <div id="books-fields" style="{{ '' if settings.get('pu_books_enabled', '0') == '1' else 'display:none;' }}">
+                            <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Goodreads RSS feed URL to show your latest finished book.</p>
+
+                            <label for="pu_goodreads_rss_url">RSS Feed URL</label>
+                            <input type="text" id="pu_goodreads_rss_url" name="pu_goodreads_rss_url" placeholder="https://www.goodreads.com/user/updates_rss/YOUR_ID?key=YOUR_KEY" value="{{ settings.get('pu_goodreads_rss_url', '') }}">
+
+                            <label for="pu_book_field_name" style="margin-top: 0.75rem;">Profile field name</label>
+                            <input type="text" id="pu_book_field_name" name="pu_book_field_name" placeholder="LAST BOOK" value="{{ settings.get('pu_book_field_name', 'LAST BOOK') }}">
+
+                            <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                            <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if section_key.strip() == 'custom' %}
+                    <div class="settings-section sortable-section" data-key="custom" draggable="true">
+                        <label class="pu-section-toggle">
+                            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                            <input type="checkbox" name="pu_custom_enabled" value="1" {{ 'checked' if settings.get('pu_custom_enabled', '0') == '1' }} onchange="toggleSection('custom-fields', this.checked)">
+                            <h2>Custom Field</h2>
+                        </label>
+
+                        <div id="custom-fields" style="{{ '' if settings.get('pu_custom_enabled', '0') == '1' else 'display:none;' }}">
+                            <p class="setup-hint" style="margin-bottom: 1rem;">Add a custom profile field with any text you want.</p>
+
+                            <label for="pu_custom_field_name">Profile field name</label>
+                            <input type="text" id="pu_custom_field_name" name="pu_custom_field_name" placeholder="e.g. STATUS, WEBSITE, PRONOUNS" value="{{ settings.get('pu_custom_field_name', '') }}">
+
+                            <label for="pu_custom_field_value" style="margin-top: 0.75rem;">Value</label>
+                            <input type="text" id="pu_custom_field_value" name="pu_custom_field_value" placeholder="e.g. Available for work, https://mysite.com" value="{{ settings.get('pu_custom_field_value', '') }}">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% endfor %}
                 </div>
-            </div>
-            {% endif %}
 
-            {% if section_key.strip() == 'movies' %}
-            <!-- Movies -->
-            <div class="settings-section sortable-section" data-key="movies" draggable="true">
-                <label class="pu-section-toggle">
-                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
-                    <input type="checkbox" name="pu_movies_enabled" value="1" {{ 'checked' if settings.get('pu_movies_enabled', '0') == '1' }} onchange="toggleSection('movies-fields', this.checked)">
-                    <h2>Movies (Letterboxd)</h2>
-                </label>
+                <!-- Behavior -->
+                <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>Behavior</h2>
 
-                <div id="movies-fields" style="{{ '' if settings.get('pu_movies_enabled', '0') == '1' else 'display:none;' }}">
-                    <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Letterboxd RSS feed URL to show your latest watched movie.</p>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="pu_show_emoji" value="1" {{ 'checked' if settings.get('pu_show_emoji', '1') == '1' }}>
+                        Show emoji in profile fields
+                    </label>
 
-                    <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
-                    <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">
-
-                    <label for="pu_movie_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-                    <input type="text" id="pu_movie_field_name" name="pu_movie_field_name" placeholder="LAST MOVIE" value="{{ settings.get('pu_movie_field_name', 'LAST MOVIE') }}">
-
-                    <label for="pu_movie_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-                    <input type="number" id="pu_movie_interval" name="pu_movie_interval" min="60" placeholder="21600" value="{{ settings.get('pu_movie_interval', '21600') }}">
+                    <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save Profile Updater</button>
                 </div>
-            </div>
-            {% endif %}
-
-            {% if section_key.strip() == 'books' %}
-            <!-- Books -->
-            <div class="settings-section sortable-section" data-key="books" draggable="true">
-                <label class="pu-section-toggle">
-                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
-                    <input type="checkbox" name="pu_books_enabled" value="1" {{ 'checked' if settings.get('pu_books_enabled', '0') == '1' }} onchange="toggleSection('books-fields', this.checked)">
-                    <h2>Books (Goodreads)</h2>
-                </label>
-
-                <div id="books-fields" style="{{ '' if settings.get('pu_books_enabled', '0') == '1' else 'display:none;' }}">
-                    <p class="setup-hint" style="margin-bottom: 1rem;">Enter your Goodreads RSS feed URL to show your latest finished book.</p>
-
-                    <label for="pu_goodreads_rss_url">RSS Feed URL</label>
-                    <input type="text" id="pu_goodreads_rss_url" name="pu_goodreads_rss_url" placeholder="https://www.goodreads.com/user/updates_rss/YOUR_ID?key=YOUR_KEY" value="{{ settings.get('pu_goodreads_rss_url', '') }}">
-
-                    <label for="pu_book_field_name" style="margin-top: 0.75rem;">Profile field name</label>
-                    <input type="text" id="pu_book_field_name" name="pu_book_field_name" placeholder="LAST BOOK" value="{{ settings.get('pu_book_field_name', 'LAST BOOK') }}">
-
-                    <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
-                    <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
-                </div>
-            </div>
-            {% endif %}
-
-            {% if section_key.strip() == 'custom' %}
-            <!-- Custom Field -->
-            <div class="settings-section sortable-section" data-key="custom" draggable="true">
-                <label class="pu-section-toggle">
-                    <span class="drag-handle" title="Drag to reorder">&#9776;</span>
-                    <input type="checkbox" name="pu_custom_enabled" value="1" {{ 'checked' if settings.get('pu_custom_enabled', '0') == '1' }} onchange="toggleSection('custom-fields', this.checked)">
-                    <h2>Custom Field</h2>
-                </label>
-
-                <div id="custom-fields" style="{{ '' if settings.get('pu_custom_enabled', '0') == '1' else 'display:none;' }}">
-                    <p class="setup-hint" style="margin-bottom: 1rem;">Add a custom profile field with any text you want.</p>
-
-                    <label for="pu_custom_field_name">Profile field name</label>
-                    <input type="text" id="pu_custom_field_name" name="pu_custom_field_name" placeholder="e.g. STATUS, WEBSITE, PRONOUNS" value="{{ settings.get('pu_custom_field_name', '') }}">
-
-                    <label for="pu_custom_field_value" style="margin-top: 0.75rem;">Value</label>
-                    <input type="text" id="pu_custom_field_value" name="pu_custom_field_value" placeholder="e.g. Available for work, https://mysite.com" value="{{ settings.get('pu_custom_field_value', '') }}">
-                </div>
-            </div>
-            {% endif %}
-
-            {% endfor %}
+            </form>
         </div>
 
-        <!-- Behavior -->
-        <div class="settings-section">
-            <h2>Behavior</h2>
-
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" name="pu_show_emoji" value="1" {{ 'checked' if settings.get('pu_show_emoji', '1') == '1' }}>
-                Show emoji in profile fields
-            </label>
-
-            <button type="submit" class="btn btn-sync" style="margin-top: 1rem;">Save Profile Updater</button>
+        <!-- ─── About ───────────────────────────────────────────── -->
+        <div id="panel-about" class="settings-panel">
+            <h1>About</h1>
+            <div class="settings-section">
+                <p class="setup-hint">Tootkeeper archives your Mastodon activity with full-text search.</p>
+                <p class="setup-hint" style="margin-top: 0.5rem;">Sync interval: every {{ poll_interval }} minutes</p>
+                <p class="setup-hint" style="margin-top: 0.5rem;">
+                    Version: <strong>{{ version }}</strong>
+                    <span id="update-status" style="margin-left: 0.5rem;"></span>
+                </p>
+                <p class="setup-hint" style="margin-top: 0.5rem;">Built with vibe coding via <a href="https://claude.ai/claude-code" target="_blank">Claude Code</a>.</p>
+            </div>
         </div>
-    </form>
 
-    <!-- ─── About ───────────────────────────────────────────── -->
-    <div class="settings-section">
-        <h2>About</h2>
-        <p class="setup-hint">Tootkeeper archives your Mastodon activity with full-text search.</p>
-        <p class="setup-hint" style="margin-top: 0.5rem;">Sync interval: every {{ poll_interval }} minutes</p>
-        <p class="setup-hint" style="margin-top: 0.5rem;">
-            Version: <strong>{{ version }}</strong>
-            <span id="update-status" style="margin-left: 0.5rem;"></span>
-        </p>
-        <p class="setup-hint" style="margin-top: 0.5rem;">Built with vibe coding via <a href="https://claude.ai/claude-code" target="_blank">Claude Code</a>.</p>
     </div>
 </div>
 
 <script>
+// Sidebar navigation
+(function() {
+    var links = document.querySelectorAll('.settings-sidebar a[data-panel]');
+    var panels = document.querySelectorAll('.settings-panel');
+
+    function showPanel(panelId) {
+        panels.forEach(function(p) { p.classList.remove('active'); });
+        links.forEach(function(l) { l.classList.remove('active'); });
+
+        var panel = document.getElementById('panel-' + panelId);
+        var link = document.querySelector('a[data-panel="' + panelId + '"]');
+        if (panel) panel.classList.add('active');
+        if (link) link.classList.add('active');
+    }
+
+    links.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var panelId = this.dataset.panel;
+            showPanel(panelId);
+            history.replaceState(null, '', '#' + panelId);
+        });
+    });
+
+    // Handle initial hash
+    var hash = window.location.hash.replace('#', '');
+    if (hash && document.getElementById('panel-' + hash)) {
+        showPanel(hash);
+    }
+})();
+
 function toggleAiFields() {
     var provider = document.getElementById('ai_provider').value;
     document.getElementById('ai-fields').style.display = provider ? '' : 'none';
@@ -268,15 +325,15 @@ function toggleSection(id, show) {
 
 function toggleProfileUpdater(action) {
     fetch('/api/tools/' + action, { method: 'POST' })
-        .then(r => r.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             if (data.status === 'ok') {
                 location.reload();
             } else {
                 alert(data.message || 'Action failed');
             }
         })
-        .catch(() => alert('Request failed'));
+        .catch(function() { alert('Request failed'); });
 }
 
 // Drag-and-drop sorting
@@ -293,7 +350,7 @@ function toggleProfileUpdater(action) {
         e.dataTransfer.effectAllowed = 'move';
     });
 
-    container.addEventListener('dragend', function(e) {
+    container.addEventListener('dragend', function() {
         if (dragItem) {
             dragItem.classList.remove('dragging');
             dragItem = null;
@@ -332,8 +389,8 @@ function toggleProfileUpdater(action) {
 // Version check
 (function() {
     fetch('/api/version')
-        .then(r => r.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             var el = document.getElementById('update-status');
             if (!el) return;
             if (data.update_available && data.latest) {
