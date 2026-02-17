@@ -163,6 +163,7 @@ def _media_preview_url(attachment: dict) -> str | None:
 # Register as Jinja2 globals/filters so templates can use them
 templates.env.globals["media_url"] = _media_url
 templates.env.globals["media_preview_url"] = _media_preview_url
+templates.env.globals["APP_VERSION"] = VERSION
 
 import json as _json
 templates.env.filters["fromjson"] = lambda s: _json.loads(s) if isinstance(s, str) else s

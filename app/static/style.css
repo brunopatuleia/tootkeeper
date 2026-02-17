@@ -121,6 +121,16 @@ a:hover {
     padding: 1.5rem 2rem;
 }
 
+/* Footer */
+.site-footer {
+    text-align: center;
+    padding: 1.5rem 2rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+}
+
 /* Headers */
 h1 {
     font-size: 1.5rem;
