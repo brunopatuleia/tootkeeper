@@ -111,15 +111,41 @@ class NavidromeClient:
             "f": "json",
         }
 
+    def _api_url(self, endpoint: str) -> str:
+        """Build the full API URL, handling servers with or without /rest/ path."""
+        base = self.server_url
+        # If the user already included /rest or a subpath, use as-is
+        if base.endswith("/rest") or "/rest/" in base:
+            return f"{base}/{endpoint}"
+        return f"{base}/rest/{endpoint}"
+
+    def _parse_response(self, resp: requests.Response) -> Optional[dict]:
+        """Parse Subsonic API response, handling both JSON and XML responses."""
+        content_type = resp.headers.get("content-type", "")
+        text = resp.text.strip()
+        if not text:
+            logger.error("Navidrome returned empty response")
+            return None
+        # Try JSON first
+        if "json" in content_type or text.startswith("{"):
+            data = resp.json().get("subsonic-response", {})
+            if data.get("status") != "ok":
+                msg = data.get("error", {}).get("message", "Unknown error")
+                logger.error(f"Navidrome API error: {msg}")
+                return None
+            return data
+        # Likely HTML login page or error page
+        logger.error(f"Navidrome returned non-JSON response (content-type: {content_type}). Check your server URL and credentials.")
+        return None
+
     def get_recent_track(self) -> Optional[dict]:
         try:
             # Try getNowPlaying first
             params = self._auth_params()
-            resp = requests.get(f"{self.server_url}/rest/getNowPlaying", params=params, timeout=10)
+            resp = requests.get(self._api_url("getNowPlaying"), params=params, timeout=10)
             resp.raise_for_status()
-            data = resp.json().get("subsonic-response", {})
-            if data.get("status") != "ok":
-                logger.error(f"Navidrome API error: {data.get('error', {}).get('message', 'Unknown')}")
+            data = self._parse_response(resp)
+            if data is None:
                 return None
 
             entries = data.get("nowPlaying", {}).get("entry", [])
@@ -134,10 +160,10 @@ class NavidromeClient:
 
             # Nothing playing now — try getPlayQueue for last played
             params = self._auth_params()
-            resp = requests.get(f"{self.server_url}/rest/getPlayQueue", params=params, timeout=10)
+            resp = requests.get(self._api_url("getPlayQueue"), params=params, timeout=10)
             resp.raise_for_status()
-            data = resp.json().get("subsonic-response", {})
-            if data.get("status") == "ok":
+            data = self._parse_response(resp)
+            if data:
                 pq = data.get("playQueue", {})
                 entries = pq.get("entry", [])
                 if entries:

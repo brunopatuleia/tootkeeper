@@ -332,7 +332,7 @@ async def save_ai_settings(request: Request):
             set_setting(conn, key, value)
         # Clear cached roast data so next dashboard load generates fresh
         conn.execute("DELETE FROM app_settings WHERE key IN ('roast_current', 'roast_pool')")
-    return RedirectResponse(url="/settings?saved=1", status_code=302)
+    return RedirectResponse(url="/settings?saved=1#ai-roast", status_code=302)
 
 
 @app.post("/api/roast")
@@ -602,7 +602,7 @@ async def settings_profile_updater(request: Request):
     profile_updater.stop()
     profile_updater.start()
 
-    return RedirectResponse(url="/settings?saved=1", status_code=302)
+    return RedirectResponse(url="/settings?saved=1#pu-sources", status_code=302)
 
 
 @app.post("/api/tools/start")
