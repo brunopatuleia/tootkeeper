@@ -271,10 +271,11 @@ class ProfileUpdater:
         self.running = False
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        # Status tracking
-        self.last_track_info: str | None = None
-        self.last_movie_info: str | None = None
-        self.last_book_info: str | None = None
+        # Status tracking — restore persisted values
+        with get_db() as conn:
+            self.last_track_info: str | None = get_setting(conn, "pu_last_track_info")
+            self.last_movie_info: str | None = get_setting(conn, "pu_last_movie_info")
+            self.last_book_info: str | None = get_setting(conn, "pu_last_book_info")
         self.last_custom_info: str | None = None
         self.last_music_update: float = 0
         self.last_movie_update: float = 0
@@ -482,6 +483,8 @@ class ProfileUpdater:
                             self.last_track_info = track_info
                             changed = True
                             logger.info(f"Music changed: {track_info}")
+                            with get_db() as conn:
+                                set_setting(conn, "pu_last_track_info", track_info)
                         self.last_music_update = now
 
                     # Movie update
@@ -492,6 +495,8 @@ class ProfileUpdater:
                             self.last_movie_info = movie_info
                             changed = True
                             logger.info(f"Movie changed: {movie_info}")
+                            with get_db() as conn:
+                                set_setting(conn, "pu_last_movie_info", movie_info)
                         self.last_movie_update = now
 
                     # Book update
@@ -502,6 +507,8 @@ class ProfileUpdater:
                             self.last_book_info = book_info
                             changed = True
                             logger.info(f"Book changed: {book_info}")
+                            with get_db() as conn:
+                                set_setting(conn, "pu_last_book_info", book_info)
                         self.last_book_update = now
 
                     # Push all managed fields in one API call when anything changes
