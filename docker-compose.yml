@@ -9,3 +9,10 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
