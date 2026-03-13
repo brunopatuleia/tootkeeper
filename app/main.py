@@ -3,6 +3,7 @@ import math
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote as _url_quote
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Query, Request
@@ -248,7 +249,7 @@ async def auth_login(request: Request):
 
     except Exception as e:
         logger.exception("Failed to register app with instance")
-        error_msg = f"Could not connect to {instance_url}: {e}"
+        error_msg = _url_quote(f"Could not connect to {instance_url}: {e}")
         return RedirectResponse(
             url=f"/setup?error={error_msg}",
             status_code=302,
@@ -303,7 +304,7 @@ async def auth_callback(request: Request, code: str = ""):
     except Exception as e:
         logger.exception("OAuth callback failed")
         return RedirectResponse(
-            url=f"/setup?error=Login+failed:+{e}",
+            url=f"/setup?error={_url_quote(f'Login failed: {e}')}",
             status_code=302,
         )
 
