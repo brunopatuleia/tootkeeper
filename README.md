@@ -2,7 +2,7 @@
 
 A self-hosted Mastodon activity archiver with full-text search. Automatically saves your toots, notifications, favorites, bookmarks, and media attachments to a local SQLite database.
 
-> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Security reviewed and hardened by [Claude Code](https://claude.ai/claude-code) (claude-sonnet-4-6).
 
 ## Features
 
