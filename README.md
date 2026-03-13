@@ -161,6 +161,17 @@ Each source can be individually enabled or disabled with a checkbox in the Setti
 - Jinja2 templates
 - Docker
 
+## Security
+
+Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://claude.ai/claude-code) (Anthropic):
+
+- OAuth error messages are URL-encoded before being embedded in redirect URLs (XSS prevention)
+- The AI roast endpoint is rate-limited to one request per 30 seconds
+- The container runs as a non-root user (`appuser`, UID 1000) with a health check
+- Docker resource limits cap memory at 512 MB and CPU at 1 core
+- Search page numbers are capped to prevent runaway SQLite offset queries
+- `requests` is now an explicit dependency rather than a transitive one
+
 ## License
 
 MIT
