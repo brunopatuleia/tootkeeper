@@ -393,20 +393,22 @@ def _get_top_artists_weekly(music_clients: list, limit: int = 5) -> list[dict]:
 def _format_weekly_artists_toot(artists: list[dict], settings: dict) -> str:
     show_emoji = _s(settings, "pu_show_emoji") == "1"
     header = "🎵 My top 5 artists this week:" if show_emoji else "My top 5 artists this week:"
+    hashtags = settings.get("pu_weekly_artists_hashtags", "").strip() or "#music #weeklyrecap"
     lines = [header, ""]
     for i, artist in enumerate(artists, 1):
         count = artist.get("playcount", 0)
         count_str = f" ({count} plays)" if count else ""
         lines.append(f"{i}. {artist['name']}{count_str}")
     lines.append("")
-    lines.append("#music #weeklyrecap")
+    lines.append(hashtags)
     return "\n".join(lines)
 
 
 def _format_book_started_toot(event: dict, settings: dict) -> str:
     emoji = "📚 " if _s(settings, "pu_show_emoji") == "1" else ""
     author_str = f" by {event['author']}" if event.get("author") else ""
-    return f"{emoji}Just started reading: {event['book_title']}{author_str}\n\n#books #amreading"
+    hashtags = settings.get("pu_books_hashtags", "").strip() or "#books #amreading"
+    return f"{emoji}Just started reading: {event['book_title']}{author_str}\n\n{hashtags}"
 
 
 def _format_book_finished_toot(event: dict, settings: dict) -> str:
@@ -414,7 +416,8 @@ def _format_book_finished_toot(event: dict, settings: dict) -> str:
     author_str = f" by {event['author']}" if event.get("author") else ""
     stars = _format_stars(event.get("rating"))
     rating_str = f" — {stars}" if stars else ""
-    return f"{emoji}Just finished reading: {event['book_title']}{author_str}{rating_str}\n\n#books #bookworm"
+    hashtags = settings.get("pu_books_hashtags", "").strip() or "#books #bookworm"
+    return f"{emoji}Just finished reading: {event['book_title']}{author_str}{rating_str}\n\n{hashtags}"
 
 
 # ── Profile Updater ──────────────────────────────────────────────

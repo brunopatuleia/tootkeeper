@@ -184,6 +184,9 @@
                                 Post my top 5 artists of the week every Monday at midnight
                             </label>
                             <p class="setup-hint" style="margin-top: 0.4rem;">Uses whichever music source is configured (Last.fm, ListenBrainz, or Navidrome). Posts publicly to your Mastodon once per week.</p>
+                            <label for="pu_weekly_artists_hashtags" style="margin-top: 0.75rem;">Hashtags</label>
+                            <input type="text" id="pu_weekly_artists_hashtags" name="pu_weekly_artists_hashtags" placeholder="#music #weeklyrecap" value="{{ settings.get('pu_weekly_artists_hashtags', '') }}">
+                            <p class="setup-hint" style="margin-top: 0.25rem;">Space-separated. Leave blank for defaults.</p>
                         </div>
                     </div>
                     {% endif %}
@@ -241,6 +244,9 @@
                                 <input type="checkbox" name="pu_books_post_finish" value="1" {{ 'checked' if settings.get('pu_books_post_finish', '0') == '1' }}>
                                 Post when I finish a book
                             </label>
+                            <label for="pu_books_hashtags" style="margin-top: 0.75rem;">Hashtags</label>
+                            <input type="text" id="pu_books_hashtags" name="pu_books_hashtags" placeholder="#books #amreading #bookworm" value="{{ settings.get('pu_books_hashtags', '') }}">
+                            <p class="setup-hint" style="margin-top: 0.25rem;">Space-separated. Used in both start and finish posts. Leave blank for defaults.</p>
                         </div>
                     </div>
                     {% endif %}

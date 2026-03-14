@@ -602,6 +602,7 @@ PU_SETTINGS_KEYS = [
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",
     "pu_custom_field_name", "pu_custom_field_value",
     "pu_field_order",
+    "pu_books_hashtags", "pu_weekly_artists_hashtags",
 ]
 
 PU_CHECKBOX_KEYS = [
