@@ -163,7 +163,7 @@ Each source can be individually enabled or disabled with a checkbox in the Setti
 
 ## Security
 
-Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://claude.ai/claude-code) (Anthropic):
+Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://claude.ai/claude-code) (Anthropic), with additional fixes suggested by a Gemini 3 Pro Preview code review:
 
 - OAuth error messages are URL-encoded before being embedded in redirect URLs (XSS prevention)
 - The AI roast endpoint is rate-limited to one request per 30 seconds
@@ -171,6 +171,9 @@ Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://c
 - Docker resource limits cap memory at 512 MB and CPU at 1 core
 - Search page numbers are capped to prevent runaway SQLite offset queries
 - `requests` is now an explicit dependency rather than a transitive one
+- Favorites/bookmarks sync cursor derived from fetched item IDs instead of unreliable pagination headers (Gemini)
+- GitHub version check result cached for 1 hour to avoid API rate limits (Gemini)
+- Explicit `rollback()` added to the database context manager (Gemini)
 
 ## License
 
