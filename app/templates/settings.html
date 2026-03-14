@@ -230,6 +230,17 @@
 
                             <label for="pu_book_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
                             <input type="number" id="pu_book_interval" name="pu_book_interval" min="60" placeholder="21600" value="{{ settings.get('pu_book_interval', '21600') }}">
+
+                            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">Book Activity Posts</h3>
+                            <p class="setup-hint" style="margin-bottom: 0.5rem;">Post publicly to Mastodon when your Goodreads activity changes. Requires Goodreads RSS to be configured above.</p>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.4rem;">
+                                <input type="checkbox" name="pu_books_post_start" value="1" {{ 'checked' if settings.get('pu_books_post_start', '0') == '1' }}>
+                                Post when I start reading a book
+                            </label>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" name="pu_books_post_finish" value="1" {{ 'checked' if settings.get('pu_books_post_finish', '0') == '1' }}>
+                                Post when I finish a book
+                            </label>
                         </div>
                     </div>
                     {% endif %}

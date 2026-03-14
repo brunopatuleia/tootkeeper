@@ -607,6 +607,7 @@ PU_SETTINGS_KEYS = [
 PU_CHECKBOX_KEYS = [
     "pu_music_enabled", "pu_movies_enabled", "pu_books_enabled",
     "pu_custom_enabled", "pu_show_emoji", "pu_weekly_artists_enabled",
+    "pu_books_post_start", "pu_books_post_finish",
 ]
 
 

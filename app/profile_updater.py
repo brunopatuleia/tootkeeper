@@ -315,6 +315,62 @@ class GoodreadsClient:
             logger.error(f"Goodreads RSS failed: {e}")
             return None
 
+    def get_book_events(self, since_entry_id: str | None = None) -> list[dict]:
+        """Return new book events (started/finished) newer than since_entry_id.
+
+        Events are returned newest-first (RSS order). Callers should reverse
+        before posting so events go out in chronological order.
+        """
+        try:
+            feed = feedparser.parse(self.rss_url)
+            if not feed.entries:
+                return []
+            events = []
+            for entry in feed.entries:
+                entry_id = entry.get("id") or entry.get("link", "")
+                if since_entry_id and entry_id == since_entry_id:
+                    break
+                title = entry.get("title", "")
+                description = entry.get("description", "")
+
+                # Finished / rated book
+                rating_match = re.search(r"gave (\d+(?:\.\d+)?) stars? to", description, re.IGNORECASE)
+                if rating_match:
+                    rating = float(rating_match.group(1))
+                    soup = BeautifulSoup(description, "html.parser")
+                    title_elem = soup.find("a", class_="bookTitle")
+                    author_elem = soup.find("a", class_="authorName")
+                    if title_elem:
+                        events.append({
+                            "type": "finished",
+                            "book_title": title_elem.get_text(strip=True),
+                            "author": author_elem.get_text(strip=True) if author_elem else "",
+                            "rating": rating,
+                            "entry_id": entry_id,
+                        })
+                    continue
+
+                # Started / currently reading
+                title_lower = title.lower()
+                if "currently-reading" in title_lower or "currently reading" in title_lower or \
+                        "started reading" in title_lower:
+                    soup = BeautifulSoup(description, "html.parser")
+                    title_elem = soup.find("a", class_="bookTitle")
+                    author_elem = soup.find("a", class_="authorName")
+                    if title_elem:
+                        events.append({
+                            "type": "started",
+                            "book_title": title_elem.get_text(strip=True),
+                            "author": author_elem.get_text(strip=True) if author_elem else "",
+                            "rating": None,
+                            "entry_id": entry_id,
+                        })
+
+            return events
+        except Exception as e:
+            logger.error(f"Goodreads book events failed: {e}")
+            return []
+
 
 def _format_stars(rating: float | None) -> str:
     if rating is None:
@@ -345,6 +401,20 @@ def _format_weekly_artists_toot(artists: list[dict], settings: dict) -> str:
     lines.append("")
     lines.append("#music #weeklyrecap")
     return "\n".join(lines)
+
+
+def _format_book_started_toot(event: dict, settings: dict) -> str:
+    emoji = "📚 " if _s(settings, "pu_show_emoji") == "1" else ""
+    author_str = f" by {event['author']}" if event.get("author") else ""
+    return f"{emoji}Just started reading: {event['book_title']}{author_str}\n\n#books #amreading"
+
+
+def _format_book_finished_toot(event: dict, settings: dict) -> str:
+    emoji = "📚 " if _s(settings, "pu_show_emoji") == "1" else ""
+    author_str = f" by {event['author']}" if event.get("author") else ""
+    stars = _format_stars(event.get("rating"))
+    rating_str = f" — {stars}" if stars else ""
+    return f"{emoji}Just finished reading: {event['book_title']}{author_str}{rating_str}\n\n#books #bookworm"
 
 
 # ── Profile Updater ──────────────────────────────────────────────
@@ -610,6 +680,32 @@ class ProfileUpdater:
                             logger.info(f"Book changed: {book_info}")
                             with get_db() as conn:
                                 set_setting(conn, "pu_last_book_info", book_info)
+
+                        # Book event toots (started / finished)
+                        post_start = settings.get("pu_books_post_start") == "1"
+                        post_finish = settings.get("pu_books_post_finish") == "1"
+                        if post_start or post_finish:
+                            with get_db() as conn:
+                                since_id = get_setting(conn, "pu_last_goodreads_entry_id")
+                            events = goodreads.get_book_events(since_entry_id=since_id)
+                            # Post in chronological order (oldest first)
+                            for event in reversed(events):
+                                toot_text = None
+                                if event["type"] == "started" and post_start:
+                                    toot_text = _format_book_started_toot(event, settings)
+                                elif event["type"] == "finished" and post_finish:
+                                    toot_text = _format_book_finished_toot(event, settings)
+                                if toot_text:
+                                    try:
+                                        mastodon.status_post(toot_text, visibility="public")
+                                        logger.info(f"Posted book {event['type']} toot: {event['book_title']}")
+                                    except MastodonError as e:
+                                        logger.error(f"Failed to post book toot: {e}")
+                            # Advance cursor to the newest entry we saw (whether we posted or not)
+                            if events:
+                                with get_db() as conn:
+                                    set_setting(conn, "pu_last_goodreads_entry_id", events[0]["entry_id"])
+
                         self.last_book_update = now
 
                     # Weekly top artists toot — posted at Monday 00:xx if enabled
