@@ -177,6 +177,13 @@
 
                             <label for="pu_music_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
                             <input type="number" id="pu_music_interval" name="pu_music_interval" min="30" placeholder="60" value="{{ settings.get('pu_music_interval', '60') }}">
+
+                            <h3 style="margin-top: 1.25rem; font-size: 0.95rem;">Weekly Recap</h3>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" name="pu_weekly_artists_enabled" value="1" {{ 'checked' if settings.get('pu_weekly_artists_enabled', '0') == '1' }}>
+                                Post my top 5 artists of the week every Monday at midnight
+                            </label>
+                            <p class="setup-hint" style="margin-top: 0.4rem;">Uses whichever music source is configured (Last.fm, ListenBrainz, or Navidrome). Posts publicly to your Mastodon once per week.</p>
                         </div>
                     </div>
                     {% endif %}

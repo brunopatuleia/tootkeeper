@@ -11,6 +11,8 @@ import os
 import re
 import threading
 import time
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import feedparser
@@ -58,6 +60,30 @@ class LastFmClient:
             logger.error(f"Last.fm API failed: {e}")
             return None
 
+    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
+        params = {
+            "method": "user.getTopArtists",
+            "user": self.username,
+            "api_key": self.api_key,
+            "format": "json",
+            "period": "7day",
+            "limit": limit,
+        }
+        try:
+            resp = requests.get(self.API_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            artists = data.get("topartists", {}).get("artist", [])
+            if not isinstance(artists, list):
+                artists = [artists]
+            return [
+                {"name": a.get("name", "Unknown"), "playcount": int(a.get("playcount", 0))}
+                for a in artists[:limit]
+            ]
+        except Exception as e:
+            logger.error(f"Last.fm top artists failed: {e}")
+            return []
+
 
 class ListenBrainzClient:
     API_URL = "https://api.listenbrainz.org/1"
@@ -89,6 +115,24 @@ class ListenBrainzClient:
         except Exception as e:
             logger.error(f"ListenBrainz API failed: {e}")
             return None
+
+    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
+        endpoint = f"{self.API_URL}/user/{self.username}/stats/top-artists"
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Token {self.token}"
+        try:
+            resp = requests.get(endpoint, params={"range": "week", "count": limit}, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            artists = data.get("payload", {}).get("artists", [])
+            return [
+                {"name": a.get("artist_name", "Unknown"), "playcount": a.get("listen_count", 0)}
+                for a in artists[:limit]
+            ]
+        except Exception as e:
+            logger.error(f"ListenBrainz top artists failed: {e}")
+            return []
 
 
 class NavidromeClient:
@@ -137,6 +181,40 @@ class NavidromeClient:
         # Likely HTML login page or error page
         logger.error(f"Navidrome returned non-JSON response (content-type: {content_type}). Check your server URL and credentials.")
         return None
+
+    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
+        """Get top artists from the last 7 days by aggregating recent album plays."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        params = self._auth_params()
+        params.update({"type": "recent", "size": "500"})
+        try:
+            resp = requests.get(self._api_url("getAlbumList2"), params=params, timeout=15)
+            resp.raise_for_status()
+            data = self._parse_response(resp)
+            if not data:
+                return []
+            albums = data.get("albumList2", {}).get("album", [])
+            if not isinstance(albums, list):
+                albums = [albums]
+
+            artist_plays: dict[str, int] = defaultdict(int)
+            for album in albums:
+                played_str = album.get("played")
+                artist = album.get("artist", "Unknown")
+                if played_str:
+                    try:
+                        played = datetime.fromisoformat(played_str.replace("Z", "+00:00"))
+                        if played < cutoff:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                artist_plays[artist] += album.get("playCount", 1)
+
+            sorted_artists = sorted(artist_plays.items(), key=lambda x: x[1], reverse=True)
+            return [{"name": name, "playcount": count} for name, count in sorted_artists[:limit]]
+        except Exception as e:
+            logger.error(f"Navidrome top artists failed: {e}")
+            return []
 
     def get_recent_track(self) -> Optional[dict]:
         try:
@@ -244,6 +322,29 @@ def _format_stars(rating: float | None) -> str:
     full = int(rating)
     half = (rating % 1) >= 0.5
     return "★" * full + ("½" if half else "")
+
+
+def _get_top_artists_weekly(music_clients: list, limit: int = 5) -> list[dict]:
+    """Try each configured music client until one returns weekly top artists."""
+    for client in music_clients:
+        if hasattr(client, "get_top_artists_weekly"):
+            artists = client.get_top_artists_weekly(limit=limit)
+            if artists:
+                return artists
+    return []
+
+
+def _format_weekly_artists_toot(artists: list[dict], settings: dict) -> str:
+    show_emoji = _s(settings, "pu_show_emoji") == "1"
+    header = "🎵 My top 5 artists this week:" if show_emoji else "My top 5 artists this week:"
+    lines = [header, ""]
+    for i, artist in enumerate(artists, 1):
+        count = artist.get("playcount", 0)
+        count_str = f" ({count} plays)" if count else ""
+        lines.append(f"{i}. {artist['name']}{count_str}")
+    lines.append("")
+    lines.append("#music #weeklyrecap")
+    return "\n".join(lines)
 
 
 # ── Profile Updater ──────────────────────────────────────────────
@@ -510,6 +611,25 @@ class ProfileUpdater:
                             with get_db() as conn:
                                 set_setting(conn, "pu_last_book_info", book_info)
                         self.last_book_update = now
+
+                    # Weekly top artists toot — posted at Monday 00:xx if enabled
+                    if settings.get("pu_weekly_artists_enabled") == "1" and music_clients:
+                        now_dt = datetime.now()
+                        if now_dt.weekday() == 0 and now_dt.hour == 0:
+                            today_str = now_dt.strftime("%Y-%m-%d")
+                            with get_db() as conn:
+                                last_posted = get_setting(conn, "pu_last_weekly_artists_date")
+                            if last_posted != today_str:
+                                top_artists = _get_top_artists_weekly(music_clients)
+                                if top_artists:
+                                    toot_text = _format_weekly_artists_toot(top_artists, settings)
+                                    try:
+                                        mastodon.status_post(toot_text, visibility="public")
+                                        with get_db() as conn:
+                                            set_setting(conn, "pu_last_weekly_artists_date", today_str)
+                                        logger.info("Posted weekly top artists toot")
+                                    except MastodonError as e:
+                                        logger.error(f"Failed to post weekly artists toot: {e}")
 
                     # Push all managed fields in one API call when anything changes
                     if changed or needs_update:
