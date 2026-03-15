@@ -11,7 +11,9 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Full-text search** - SQLite FTS5 powered search across all your archived content
 - **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
 - **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz/Navidrome), last-watched movie (Letterboxd), and last-read book (Goodreads)
+- **Audiobookshelf integration** - Post a toot with cover art automatically when you start a new audiobook
 - **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama)
+- **Optional password protection** - Lock the web UI behind a password with `APP_PASSWORD`
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
 - **Settings** - Configure profile updater, AI roast, manage account, check for updates — all from one page
@@ -66,6 +68,7 @@ Edit `.env` if you need to change the default settings:
 | `AI_API_KEY` | | Your AI provider API key |
 | `AI_MODEL` | *(auto)* | Model to use (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o`, `gemini-2.0-flash`) |
 | `AI_BASE_URL` | | Only for `openai-compatible` (e.g. `http://localhost:11434/v1` for Ollama) |
+| `APP_PASSWORD` | *(disabled)* | Optional password to protect the web UI. Leave blank for no authentication. |
 
 **Important:** If you run the app on a different port (e.g. `8080`), you **must** update `APP_URL` (e.g. `http://localhost:8080`) so the OAuth login redirects back to the correct place.
 
@@ -132,6 +135,10 @@ Shows the last book you finished and rated, pulled from your Goodreads RSS feed.
 
 **Example:** 📚 Dune by Frank Herbert - ★★★★★
 
+### Book Activity Posts (Goodreads)
+
+Optionally post publicly to Mastodon when your Goodreads activity changes — when you start or finish a book. Enable the checkboxes in the Books section of Sources & Fields.
+
 ### Custom Field
 
 A user-defined field that you can set to any static text — useful for a status, a link, or anything else you want to display on your profile.
@@ -141,6 +148,31 @@ A user-defined field that you can set to any static text — useful for a status
 Each source can be individually enabled or disabled with a checkbox in the Settings page. Drag and drop the sections to control the order fields appear on your Mastodon profile. Just enter your usernames, API keys, and RSS feed URLs for the sources you want to use. The updater runs as a background thread and only updates your profile when the content actually changes.
 
 > **Note:** Mastodon profiles allow a maximum of **4 metadata fields**. The profile updater can use up to 3 of those fields (music, movies, books) plus 1 custom field — which means it could occupy all 4 slots. Keep this in mind if you also use profile fields for other things like your website or pronouns. You can enable only the sources you need to leave room for your other fields.
+
+## Audiobookshelf Integration
+
+Connect Tootkeeper to your [Audiobookshelf](https://www.audiobookshelf.org/) server to automatically post a toot with the book cover when you start listening to a new audiobook.
+
+**Post format:**
+```
+The Name of the Wind [2007]
+Patrick Rothfuss
+
+[cover image]
+
+#NowReading #Audiobooks #Books #Fantasy #Epic
+```
+
+Genres are pulled directly from your Audiobookshelf metadata and appended as hashtags automatically.
+
+### Setup
+
+1. In Audiobookshelf, go to **Settings → API Keys** and create a new key
+2. In Tootkeeper, go to **Settings → Audiobookshelf**
+3. Enter your server URL (e.g. `http://192.168.1.x:13378`) and the API token
+4. Save — Tootkeeper polls every 15 minutes by default and posts once per book
+
+Already-posted book IDs are tracked in the database so you'll never get duplicate toots.
 
 ## What Gets Archived
 
@@ -166,8 +198,11 @@ Each source can be individually enabled or disabled with a checkbox in the Setti
 Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://claude.ai/claude-code) (Anthropic), with additional fixes suggested by a Gemini 3 Pro Preview code review:
 
 - OAuth error messages are URL-encoded before being embedded in redirect URLs (XSS prevention)
+- Open redirect vulnerability fixed in login flow (`/login?next=` validates relative paths only)
+- OAuth registration endpoint (`/auth/login`) protected from unauthenticated access
 - The AI roast endpoint is rate-limited to one request per 30 seconds
 - The container runs as a non-root user (`appuser`, UID 1000) with a health check
+- Entrypoint script auto-fixes data volume ownership at startup to prevent permission errors on first deploy
 - Docker resource limits cap memory at 512 MB and CPU at 1 core
 - Search page numbers are capped to prevent runaway SQLite offset queries
 - `requests` is now an explicit dependency rather than a transitive one
