@@ -450,9 +450,23 @@ async def api_regenerate_roast(request: Request):
         _last_roast_request = now
     with get_db() as conn:
         roast = generate_roast(conn, force=True)
+        roast_toot_enabled = get_setting(conn, "pu_roast_toot_enabled") == "1"
     if not roast:
         return JSONResponse({"status": "error", "message": "AI not configured or API call failed"}, status_code=400)
-    return JSONResponse({"status": "ok", "roast": roast})
+
+    tooted = False
+    if roast_toot_enabled:
+        creds = _get_credentials()
+        if creds:
+            try:
+                instance_url, access_token = creds
+                client = Mastodon(access_token=access_token, api_base_url=instance_url)
+                client.status_post(roast, visibility="public")
+                tooted = True
+            except Exception:
+                logger.exception("Failed to toot the roast")
+
+    return JSONResponse({"status": "ok", "roast": roast, "tooted": tooted})
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -704,34 +718,43 @@ PU_SETTINGS_KEYS = [
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",
     "pu_custom_field_name", "pu_custom_field_value",
     "pu_field_order",
-    "pu_books_hashtags", "pu_weekly_artists_hashtags",
-    "pu_album_hashtags",
 ]
 
 PU_CHECKBOX_KEYS = [
     "pu_music_enabled", "pu_movies_enabled", "pu_books_enabled",
-    "pu_custom_enabled", "pu_show_emoji", "pu_weekly_artists_enabled",
-    "pu_books_post_start", "pu_books_post_finish",
-    "pu_album_enabled",
+    "pu_custom_enabled", "pu_show_emoji",
 ]
 
-ABS_SETTINGS_KEYS = ["pu_abs_url", "pu_abs_token", "pu_abs_hashtags", "pu_abs_interval"]
+AUTO_TOOTS_SETTINGS_KEYS = [
+    "pu_weekly_artists_hashtags",
+    "pu_books_hashtags",
+    "pu_album_hashtags",
+    "pu_abs_url", "pu_abs_token", "pu_abs_hashtags", "pu_abs_interval",
+]
+
+AUTO_TOOTS_CHECKBOX_KEYS = [
+    "pu_weekly_artists_enabled",
+    "pu_books_post_start", "pu_books_post_finish",
+    "pu_album_enabled",
+    "pu_abs_enabled",
+    "pu_roast_toot_enabled",
+]
 
 
-@app.post("/settings/audiobookshelf")
-async def settings_audiobookshelf(request: Request):
+@app.post("/settings/auto-toots")
+async def settings_auto_toots(request: Request):
     auth = _require_auth(request)
     if auth:
         return auth
     form = await request.form()
     with get_db() as conn:
-        for key in ABS_SETTINGS_KEYS:
+        for key in AUTO_TOOTS_SETTINGS_KEYS:
             set_setting(conn, key, str(form.get(key, "")).strip())
-        set_setting(conn, "pu_abs_enabled", "1" if form.get("pu_abs_enabled") else "0")
+        for key in AUTO_TOOTS_CHECKBOX_KEYS:
+            set_setting(conn, key, "1" if form.get(key) else "0")
     profile_updater.stop()
-    if form.get("pu_abs_enabled"):
-        profile_updater.start()
-    return RedirectResponse(url="/settings?saved=1#audiobookshelf", status_code=302)
+    profile_updater.start()
+    return RedirectResponse(url="/settings?saved=1#auto-toots", status_code=302)
 
 
 @app.get("/tools")
@@ -756,7 +779,7 @@ async def settings_profile_updater(request: Request):
     profile_updater.stop()
     profile_updater.start()
 
-    return RedirectResponse(url="/settings?saved=1#pu-sources", status_code=302)
+    return RedirectResponse(url="/settings?saved=1#profile-fields", status_code=302)
 
 
 @app.post("/api/tools/start")
