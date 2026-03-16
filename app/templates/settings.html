@@ -69,7 +69,7 @@
 
                     <div id="ai-fields" style="{{ '' if settings.get('ai_provider') else 'display:none;' }}">
                         <label for="ai_api_key" style="margin-top: 0.75rem;">API Key</label>
-                        <input type="password" id="ai_api_key" name="ai_api_key" placeholder="sk-..." value="{{ settings.get('ai_api_key', '') }}">
+                        <input type="password" id="ai_api_key" name="ai_api_key" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('ai_api_key') else 'sk-...' }}">
 
                         <label for="ai_model" style="margin-top: 0.75rem;">Model <span class="setup-hint">(optional, uses sensible default)</span></label>
                         <input type="text" id="ai_model" name="ai_model" placeholder="e.g. claude-sonnet-4-5-20250929, gpt-4o, gemini-2.0-flash" value="{{ settings.get('ai_model', '') }}">
@@ -97,7 +97,7 @@
                     <label for="pu_lastfm_username">Username</label>
                     <input type="text" id="pu_lastfm_username" name="pu_lastfm_username" placeholder="Your Last.fm username" value="{{ settings.get('pu_lastfm_username', '') }}">
                     <label for="pu_lastfm_api_key" style="margin-top: 0.75rem;">API Key</label>
-                    <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="Get from last.fm/api/account/create" value="{{ settings.get('pu_lastfm_api_key', '') }}">
+                    <input type="password" id="pu_lastfm_api_key" name="pu_lastfm_api_key" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_lastfm_api_key') else 'Get from last.fm/api/account/create' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -105,7 +105,7 @@
                     <label for="pu_listenbrainz_username">Username</label>
                     <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">
                     <label for="pu_listenbrainz_token" style="margin-top: 0.75rem;">Token <span class="setup-hint">(optional)</span></label>
-                    <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="For authenticated access" value="{{ settings.get('pu_listenbrainz_token', '') }}">
+                    <input type="password" id="pu_listenbrainz_token" name="pu_listenbrainz_token" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_listenbrainz_token') else 'For authenticated access' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -115,7 +115,7 @@
                     <label for="pu_navidrome_username" style="margin-top: 0.75rem;">Username</label>
                     <input type="text" id="pu_navidrome_username" name="pu_navidrome_username" placeholder="Your Navidrome username" value="{{ settings.get('pu_navidrome_username', '') }}">
                     <label for="pu_navidrome_password" style="margin-top: 0.75rem;">Password</label>
-                    <input type="password" id="pu_navidrome_password" name="pu_navidrome_password" placeholder="Your Navidrome password" value="{{ settings.get('pu_navidrome_password', '') }}">
+                    <input type="password" id="pu_navidrome_password" name="pu_navidrome_password" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_navidrome_password') else 'Your Navidrome password' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -127,9 +127,9 @@
                     <label for="pu_spotify_client_id">Client ID</label>
                     <input type="text" id="pu_spotify_client_id" name="pu_spotify_client_id" placeholder="Your Spotify app Client ID" value="{{ settings.get('pu_spotify_client_id', '') }}">
                     <label for="pu_spotify_client_secret" style="margin-top: 0.75rem;">Client Secret</label>
-                    <input type="password" id="pu_spotify_client_secret" name="pu_spotify_client_secret" placeholder="Your Spotify app Client Secret" value="{{ settings.get('pu_spotify_client_secret', '') }}">
+                    <input type="password" id="pu_spotify_client_secret" name="pu_spotify_client_secret" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_spotify_client_secret') else 'Your Spotify app Client Secret' }}">
                     <label for="pu_spotify_refresh_token" style="margin-top: 0.75rem;">Refresh Token</label>
-                    <input type="password" id="pu_spotify_refresh_token" name="pu_spotify_refresh_token" placeholder="Long-lived refresh token" value="{{ settings.get('pu_spotify_refresh_token', '') }}">
+                    <input type="password" id="pu_spotify_refresh_token" name="pu_spotify_refresh_token" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_spotify_refresh_token') else 'Long-lived refresh token' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -138,7 +138,7 @@
                     <label for="pu_jellyfin_url">Server URL</label>
                     <input type="text" id="pu_jellyfin_url" name="pu_jellyfin_url" placeholder="http://192.168.1.x:8096" value="{{ settings.get('pu_jellyfin_url', '') }}">
                     <label for="pu_jellyfin_api_key" style="margin-top: 0.75rem;">API Key</label>
-                    <input type="password" id="pu_jellyfin_api_key" name="pu_jellyfin_api_key" placeholder="From Dashboard → API Keys" value="{{ settings.get('pu_jellyfin_api_key', '') }}">
+                    <input type="password" id="pu_jellyfin_api_key" name="pu_jellyfin_api_key" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_jellyfin_api_key') else 'From Dashboard → API Keys' }}">
                     <label for="pu_jellyfin_user_id" style="margin-top: 0.75rem;">User ID <span class="setup-hint">(optional)</span></label>
                     <input type="text" id="pu_jellyfin_user_id" name="pu_jellyfin_user_id" placeholder="Leave blank for any active session" value="{{ settings.get('pu_jellyfin_user_id', '') }}">
                 </div>
@@ -149,7 +149,7 @@
                     <label for="pu_plex_url">Server URL</label>
                     <input type="text" id="pu_plex_url" name="pu_plex_url" placeholder="http://192.168.1.x:32400" value="{{ settings.get('pu_plex_url', '') }}">
                     <label for="pu_plex_token" style="margin-top: 0.75rem;">Token</label>
-                    <input type="password" id="pu_plex_token" name="pu_plex_token" placeholder="Your X-Plex-Token" value="{{ settings.get('pu_plex_token', '') }}">
+                    <input type="password" id="pu_plex_token" name="pu_plex_token" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_plex_token') else 'Your X-Plex-Token' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -158,7 +158,7 @@
                     <label for="pu_tautulli_url">Server URL</label>
                     <input type="text" id="pu_tautulli_url" name="pu_tautulli_url" placeholder="http://192.168.1.x:8181" value="{{ settings.get('pu_tautulli_url', '') }}">
                     <label for="pu_tautulli_api_key" style="margin-top: 0.75rem;">API Key</label>
-                    <input type="password" id="pu_tautulli_api_key" name="pu_tautulli_api_key" placeholder="From Settings → Web Interface → API" value="{{ settings.get('pu_tautulli_api_key', '') }}">
+                    <input type="password" id="pu_tautulli_api_key" name="pu_tautulli_api_key" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_tautulli_api_key') else 'From Settings → Web Interface → API' }}">
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -178,7 +178,7 @@
                     <label for="pu_abs_url">Server URL</label>
                     <input type="text" id="pu_abs_url" name="pu_abs_url" placeholder="http://192.168.1.x:13378" value="{{ settings.get('pu_abs_url', '') }}">
                     <label for="pu_abs_token" style="margin-top: 0.75rem;">API Token</label>
-                    <input type="password" id="pu_abs_token" name="pu_abs_token" placeholder="Get from Settings → API Keys in Audiobookshelf" value="{{ settings.get('pu_abs_token', '') }}">
+                    <input type="password" id="pu_abs_token" name="pu_abs_token" placeholder="{{ '••••••••• (leave blank to keep)' if settings.get('pu_abs_token') else 'Get from Settings → API Keys in Audiobookshelf' }}">
                 </div>
 
                 <button type="submit" class="btn btn-sync" style="margin-top: 1.5rem;">Save Services</button>

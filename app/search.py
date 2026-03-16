@@ -26,7 +26,8 @@ def _sanitize_fts_query(query: str) -> str:
 
     parts = []
     for phrase in phrases:
-        parts.append(f'"{phrase}"')
+        # Escape internal double-quotes to prevent FTS5 syntax injection
+        parts.append('"' + phrase.replace('"', '""') + '"')
     for word in words:
         parts.append(f'"{word}"*')
 

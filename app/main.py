@@ -426,6 +426,8 @@ async def save_ai_settings(request: Request):
     with get_db() as conn:
         for key in ("ai_provider", "ai_api_key", "ai_model", "ai_base_url"):
             value = str(form.get(key, "")).strip()
+            if not value and key == "ai_api_key":
+                continue  # Never overwrite a stored API key with empty
             set_setting(conn, key, value)
         # Clear cached roast data so next dashboard load generates fresh
         conn.execute("DELETE FROM app_settings WHERE key IN ('roast_current', 'roast_pool')")
@@ -722,6 +724,13 @@ SERVICES_SETTINGS_KEYS = [
     "pu_abs_url", "pu_abs_token",
 ]
 
+# Secret fields are never sent back to the browser. On save, only overwrite if non-empty.
+SERVICES_SECRET_KEYS = {
+    "pu_lastfm_api_key", "pu_listenbrainz_token", "pu_navidrome_password",
+    "pu_spotify_client_secret", "pu_spotify_refresh_token",
+    "pu_jellyfin_api_key", "pu_plex_token", "pu_tautulli_api_key", "pu_abs_token",
+}
+
 PU_SETTINGS_KEYS = [
     "pu_music_field_name", "pu_movie_field_name", "pu_book_field_name",
     "pu_music_interval", "pu_movie_interval", "pu_book_interval",
@@ -758,7 +767,11 @@ async def settings_services(request: Request):
     form = await request.form()
     with get_db() as conn:
         for key in SERVICES_SETTINGS_KEYS:
-            set_setting(conn, key, str(form.get(key, "")).strip())
+            value = str(form.get(key, "")).strip()
+            # Never overwrite a stored secret with an empty submission
+            if not value and key in SERVICES_SECRET_KEYS:
+                continue
+            set_setting(conn, key, value)
     profile_updater.stop()
     profile_updater.start()
     return RedirectResponse(url="/settings?saved=1#services", status_code=302)
@@ -788,6 +801,9 @@ async def tools_redirect():
 
 @app.post("/settings/profile-updater")
 async def settings_profile_updater(request: Request):
+    auth = _require_auth(request)
+    if auth:
+        return auth
     form = await request.form()
     with get_db() as conn:
         for key in PU_SETTINGS_KEYS:
