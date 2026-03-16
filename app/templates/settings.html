@@ -119,6 +119,49 @@
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>Spotify</h2>
+                    <p class="setup-hint" style="margin-bottom: 0.75rem;">
+                        Create an app at <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a>, then get a refresh token with <code>user-read-currently-playing user-read-recently-played</code> scopes.
+                        <a href="https://accounts.spotify.com/authorize?response_type=code&scope=user-read-currently-playing+user-read-recently-played" target="_blank">One-time auth guide →</a>
+                    </p>
+                    <label for="pu_spotify_client_id">Client ID</label>
+                    <input type="text" id="pu_spotify_client_id" name="pu_spotify_client_id" placeholder="Your Spotify app Client ID" value="{{ settings.get('pu_spotify_client_id', '') }}">
+                    <label for="pu_spotify_client_secret" style="margin-top: 0.75rem;">Client Secret</label>
+                    <input type="password" id="pu_spotify_client_secret" name="pu_spotify_client_secret" placeholder="Your Spotify app Client Secret" value="{{ settings.get('pu_spotify_client_secret', '') }}">
+                    <label for="pu_spotify_refresh_token" style="margin-top: 0.75rem;">Refresh Token</label>
+                    <input type="password" id="pu_spotify_refresh_token" name="pu_spotify_refresh_token" placeholder="Long-lived refresh token" value="{{ settings.get('pu_spotify_refresh_token', '') }}">
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>Jellyfin</h2>
+                    <p class="setup-hint" style="margin-bottom: 0.75rem;">Get an API key from Dashboard → API Keys. User ID is optional — leave blank to show any active session.</p>
+                    <label for="pu_jellyfin_url">Server URL</label>
+                    <input type="text" id="pu_jellyfin_url" name="pu_jellyfin_url" placeholder="http://192.168.1.x:8096" value="{{ settings.get('pu_jellyfin_url', '') }}">
+                    <label for="pu_jellyfin_api_key" style="margin-top: 0.75rem;">API Key</label>
+                    <input type="password" id="pu_jellyfin_api_key" name="pu_jellyfin_api_key" placeholder="From Dashboard → API Keys" value="{{ settings.get('pu_jellyfin_api_key', '') }}">
+                    <label for="pu_jellyfin_user_id" style="margin-top: 0.75rem;">User ID <span class="setup-hint">(optional)</span></label>
+                    <input type="text" id="pu_jellyfin_user_id" name="pu_jellyfin_user_id" placeholder="Leave blank for any active session" value="{{ settings.get('pu_jellyfin_user_id', '') }}">
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>Plex</h2>
+                    <p class="setup-hint" style="margin-bottom: 0.75rem;">Find your token at plex.tv/claim or by inspecting any Plex API request (look for <code>X-Plex-Token</code>).</p>
+                    <label for="pu_plex_url">Server URL</label>
+                    <input type="text" id="pu_plex_url" name="pu_plex_url" placeholder="http://192.168.1.x:32400" value="{{ settings.get('pu_plex_url', '') }}">
+                    <label for="pu_plex_token" style="margin-top: 0.75rem;">Token</label>
+                    <input type="password" id="pu_plex_token" name="pu_plex_token" placeholder="Your X-Plex-Token" value="{{ settings.get('pu_plex_token', '') }}">
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>Tautulli</h2>
+                    <p class="setup-hint" style="margin-bottom: 0.75rem;">Get an API key from Settings → Web Interface → API. Alternative to using Plex directly.</p>
+                    <label for="pu_tautulli_url">Server URL</label>
+                    <input type="text" id="pu_tautulli_url" name="pu_tautulli_url" placeholder="http://192.168.1.x:8181" value="{{ settings.get('pu_tautulli_url', '') }}">
+                    <label for="pu_tautulli_api_key" style="margin-top: 0.75rem;">API Key</label>
+                    <input type="password" id="pu_tautulli_api_key" name="pu_tautulli_api_key" placeholder="From Settings → Web Interface → API" value="{{ settings.get('pu_tautulli_api_key', '') }}">
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
                     <h2>Letterboxd</h2>
                     <label for="pu_letterboxd_rss_url">RSS Feed URL</label>
                     <input type="text" id="pu_letterboxd_rss_url" name="pu_letterboxd_rss_url" placeholder="https://letterboxd.com/USERNAME/rss/" value="{{ settings.get('pu_letterboxd_rss_url', '') }}">

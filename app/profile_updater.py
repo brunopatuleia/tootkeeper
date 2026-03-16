@@ -5,6 +5,7 @@ last-watched movie, and last-read book.
 Adapted from the standalone mastodon_profile_update project.
 """
 
+import base64
 import hashlib
 import json
 import logging
@@ -496,6 +497,151 @@ class AudiobookshelfClient:
             return None
 
 
+class SpotifyClient:
+    TOKEN_URL = "https://accounts.spotify.com/api/token"
+    API_URL = "https://api.spotify.com/v1"
+
+    def __init__(self, client_id: str, client_secret: str, refresh_token: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.refresh_token = refresh_token
+        self._access_token: str | None = None
+        self._token_expiry: float = 0
+
+    def _get_access_token(self) -> str | None:
+        if self._access_token and time.time() < self._token_expiry - 60:
+            return self._access_token
+        credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        try:
+            resp = requests.post(
+                self.TOKEN_URL,
+                headers={"Authorization": f"Basic {credentials}"},
+                data={"grant_type": "refresh_token", "refresh_token": self.refresh_token},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            self._access_token = data["access_token"]
+            self._token_expiry = time.time() + data.get("expires_in", 3600)
+            return self._access_token
+        except Exception as e:
+            logger.error(f"Spotify token refresh failed: {e}")
+            return None
+
+    def get_recent_track(self) -> Optional[dict]:
+        token = self._get_access_token()
+        if not token:
+            return None
+        headers = {"Authorization": f"Bearer {token}"}
+        try:
+            resp = requests.get(f"{self.API_URL}/me/player/currently-playing", headers=headers, timeout=10)
+            if resp.status_code == 200 and resp.content:
+                data = resp.json()
+                item = data.get("item")
+                if item:
+                    return {
+                        "artist": ", ".join(a["name"] for a in item.get("artists", [])),
+                        "title": item["name"],
+                        "now_playing": data.get("is_playing", False),
+                        "source": "spotify",
+                    }
+            # Fall back to recently played
+            resp = requests.get(f"{self.API_URL}/me/player/recently-played?limit=1", headers=headers, timeout=10)
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            if items:
+                track = items[0]["track"]
+                return {
+                    "artist": ", ".join(a["name"] for a in track.get("artists", [])),
+                    "title": track["name"],
+                    "now_playing": False,
+                    "source": "spotify",
+                }
+        except Exception as e:
+            logger.error(f"Spotify API failed: {e}")
+        return None
+
+
+class JellyfinClient:
+    def __init__(self, server_url: str, api_key: str, user_id: str = ""):
+        self.server_url = server_url.rstrip("/")
+        self.api_key = api_key
+        self.user_id = user_id
+        self._headers = {"X-Emby-Token": api_key}
+
+    def get_recent_track(self) -> Optional[dict]:
+        try:
+            resp = requests.get(f"{self.server_url}/Sessions", headers=self._headers, timeout=10)
+            resp.raise_for_status()
+            for session in resp.json():
+                item = session.get("NowPlayingItem")
+                if not item or item.get("Type") != "Audio":
+                    continue
+                if self.user_id and session.get("UserId") != self.user_id:
+                    continue
+                artists = item.get("Artists") or item.get("AlbumArtists") or []
+                return {
+                    "artist": artists[0] if artists else "Unknown Artist",
+                    "title": item.get("Name", "Unknown Title"),
+                    "now_playing": True,
+                    "source": "jellyfin",
+                }
+        except Exception as e:
+            logger.error(f"Jellyfin API failed: {e}")
+        return None
+
+
+class PlexClient:
+    def __init__(self, server_url: str, token: str):
+        self.server_url = server_url.rstrip("/")
+        self.token = token
+        self._headers = {"X-Plex-Token": token, "Accept": "application/json"}
+
+    def get_recent_track(self) -> Optional[dict]:
+        try:
+            resp = requests.get(f"{self.server_url}/status/sessions", headers=self._headers, timeout=10)
+            resp.raise_for_status()
+            items = resp.json().get("MediaContainer", {}).get("Metadata", [])
+            for item in items:
+                if item.get("type") == "track":
+                    return {
+                        "artist": item.get("grandparentTitle", "Unknown Artist"),
+                        "title": item.get("title", "Unknown Title"),
+                        "now_playing": True,
+                        "source": "plex",
+                    }
+        except Exception as e:
+            logger.error(f"Plex API failed: {e}")
+        return None
+
+
+class TautulliClient:
+    def __init__(self, server_url: str, api_key: str):
+        self.server_url = server_url.rstrip("/")
+        self.api_key = api_key
+
+    def get_recent_track(self) -> Optional[dict]:
+        try:
+            resp = requests.get(
+                f"{self.server_url}/api/v2",
+                params={"apikey": self.api_key, "cmd": "get_activity"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            sessions = resp.json().get("response", {}).get("data", {}).get("sessions", [])
+            for session in sessions:
+                if session.get("media_type") == "track":
+                    return {
+                        "artist": session.get("grandparent_title", "Unknown Artist"),
+                        "title": session.get("title", "Unknown Title"),
+                        "now_playing": True,
+                        "source": "tautulli",
+                    }
+        except Exception as e:
+            logger.error(f"Tautulli API failed: {e}")
+        return None
+
+
 def _format_stars(rating: float | None) -> str:
     if rating is None:
         return ""
@@ -689,6 +835,32 @@ class ProfileUpdater:
             nd_pass = settings.get("pu_navidrome_password", "").strip()
             if nd_url and nd_user and nd_pass:
                 music_clients.append(NavidromeClient(nd_url, nd_user, nd_pass))
+
+            # Spotify
+            sp_id = settings.get("pu_spotify_client_id", "").strip()
+            sp_secret = settings.get("pu_spotify_client_secret", "").strip()
+            sp_refresh = settings.get("pu_spotify_refresh_token", "").strip()
+            if sp_id and sp_secret and sp_refresh:
+                music_clients.append(SpotifyClient(sp_id, sp_secret, sp_refresh))
+
+            # Jellyfin
+            jf_url = settings.get("pu_jellyfin_url", "").strip()
+            jf_key = settings.get("pu_jellyfin_api_key", "").strip()
+            jf_user = settings.get("pu_jellyfin_user_id", "").strip()
+            if jf_url and jf_key:
+                music_clients.append(JellyfinClient(jf_url, jf_key, jf_user))
+
+            # Plex
+            plex_url = settings.get("pu_plex_url", "").strip()
+            plex_token = settings.get("pu_plex_token", "").strip()
+            if plex_url and plex_token:
+                music_clients.append(PlexClient(plex_url, plex_token))
+
+            # Tautulli
+            tautulli_url = settings.get("pu_tautulli_url", "").strip()
+            tautulli_key = settings.get("pu_tautulli_api_key", "").strip()
+            if tautulli_url and tautulli_key:
+                music_clients.append(TautulliClient(tautulli_url, tautulli_key))
 
         # Letterboxd
         letterboxd = None
