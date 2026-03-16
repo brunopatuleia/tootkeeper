@@ -73,16 +73,27 @@ def _is_authenticated(request: Request) -> bool:
     return request.cookies.get(_AUTH_COOKIE) == _auth_token()
 
 
+import socket as _socket
+
 _BLOCKED_HOSTS = {"169.254.169.254", "169.254.170.2", "metadata.google.internal"}
 
 def _safe_url(url: str) -> bool:
-    """Return False for cloud metadata endpoints. Private IPs are allowed (homelab)."""
+    """Return False for cloud metadata endpoints and loopback addresses. Private IPs allowed (homelab)."""
     from urllib.parse import urlparse
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return False
-        return (parsed.hostname or "") not in _BLOCKED_HOSTS
+        hostname = (parsed.hostname or "").lower()
+        if hostname in _BLOCKED_HOSTS:
+            return False
+        try:
+            ip = _socket.gethostbyname(hostname)
+            if ip.startswith("127.") or ip in ("0.0.0.0", "::1"):
+                return False
+        except _socket.gaierror:
+            return False
+        return True
     except Exception:
         return False
 

@@ -1,5 +1,6 @@
 import logging
 import os
+import socket
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -40,6 +41,29 @@ def get_client() -> Mastodon:
     )
 
 
+_BLOCKED_HOSTS = {"169.254.169.254", "169.254.170.2", "metadata.google.internal"}
+
+
+def _safe_media_url(url: str) -> bool:
+    """Block loopback and cloud metadata URLs before downloading media."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if hostname in _BLOCKED_HOSTS:
+            return False
+        try:
+            ip = socket.gethostbyname(hostname)
+            if ip.startswith("127.") or ip in ("0.0.0.0", "::1"):
+                return False
+        except socket.gaierror:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def _get_extension(url: str) -> str:
     """Extract file extension from URL."""
     path = urlparse(url).path
@@ -72,13 +96,13 @@ def download_media(status: dict):
         url = media.get("url") or media.get("remote_url")
         preview_url = media.get("preview_url")
 
-        if url:
+        if url and _safe_media_url(url):
             ext = _get_extension(url)
             local_path = Path(MEDIA_PATH) / f"{media_id}{ext}"
             if not local_path.exists():
                 _download_file(url, local_path)
 
-        if preview_url:
+        if preview_url and _safe_media_url(preview_url):
             ext = _get_extension(preview_url)
             preview_path = Path(MEDIA_PATH) / f"{media_id}_preview{ext}"
             if not preview_path.exists():

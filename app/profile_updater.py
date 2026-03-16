@@ -27,17 +27,29 @@ from app.database import get_all_settings, get_db, get_setting, set_setting
 
 logger = logging.getLogger(__name__)
 
+import socket
+
 _BLOCKED_HOSTS = {"169.254.169.254", "169.254.170.2", "metadata.google.internal"}
 
 
 def _safe_url(url: str) -> bool:
-    """Block cloud metadata endpoints. Private IPs are intentionally allowed (homelab)."""
+    """Block cloud metadata endpoints and loopback addresses. Private IPs allowed (homelab)."""
     from urllib.parse import urlparse
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return False
-        return (parsed.hostname or "") not in _BLOCKED_HOSTS
+        hostname = (parsed.hostname or "").lower()
+        if hostname in _BLOCKED_HOSTS:
+            return False
+        # Block loopback / unspecified addresses by resolving the hostname
+        try:
+            ip = socket.gethostbyname(hostname)
+            if ip.startswith("127.") or ip in ("0.0.0.0", "::1"):
+                return False
+        except socket.gaierror:
+            return False
+        return True
     except Exception:
         return False
 
@@ -880,14 +892,14 @@ class ProfileUpdater:
         letterboxd = None
         if settings.get("pu_movies_enabled") == "1":
             lb_rss = settings.get("pu_letterboxd_rss_url", "").strip()
-            if lb_rss:
+            if lb_rss and _safe_url(lb_rss):
                 letterboxd = LetterboxdClient(lb_rss)
 
         # Goodreads
         goodreads = None
         if settings.get("pu_books_enabled") == "1":
             gr_rss = settings.get("pu_goodreads_rss_url", "").strip()
-            if gr_rss:
+            if gr_rss and _safe_url(gr_rss):
                 goodreads = GoodreadsClient(gr_rss)
 
         # Audiobookshelf
