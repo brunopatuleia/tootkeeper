@@ -1061,15 +1061,17 @@ class ProfileUpdater:
                                 set_setting(conn, "pu_last_track_info", track_info)
                         self.last_music_update = now
 
-                        # Album listen detection (Navidrome only — requires albumId + track)
-                        if settings.get("pu_album_enabled") == "1" and track and track.get("albumId"):
+                        # Album listen detection — always poll Navidrome directly so albumId is available
+                        # (primary music source may be Last.fm which has no albumId)
+                        if settings.get("pu_album_enabled") == "1":
                             navidrome_client = next(
                                 (c for c in music_clients if isinstance(c, NavidromeClient)), None
                             )
-                            if navidrome_client:
-                                album_id = track["albumId"]
-                                disc = track.get("discNumber", 1) or 1
-                                track_num = track.get("track", 0) or 0
+                            nd_track = navidrome_client.get_recent_track() if navidrome_client else None
+                            if navidrome_client and nd_track and nd_track.get("albumId") and nd_track.get("now_playing"):
+                                album_id = nd_track["albumId"]
+                                disc = nd_track.get("discNumber", 1) or 1
+                                track_num = nd_track.get("track", 0) or 0
                                 track_key = (disc, track_num)
 
                                 if not self._album_session or self._album_session["album_id"] != album_id:
