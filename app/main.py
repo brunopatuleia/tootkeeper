@@ -46,7 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 APP_DIR = Path(__file__).parent
-OAUTH_SCOPES = "read write:accounts"
+OAUTH_SCOPES = "read write:accounts write:statuses write:media"
 
 scheduler = BackgroundScheduler()
 sync_lock = threading.Lock()
