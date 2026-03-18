@@ -19,12 +19,52 @@
     </div>
 </div>
 
+{% if chart.labels %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <canvas id="followersChart" height="100"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('followersChart'), {
+    type: 'line',
+    data: {
+        labels: {{ chart.labels | tojson }},
+        datasets: [
+            {
+                label: 'Followed',
+                data: {{ chart.followed | tojson }},
+                borderColor: 'var(--accent)',
+                backgroundColor: 'rgba(100,149,237,0.1)',
+                tension: 0.3,
+                fill: true,
+            },
+            {
+                label: 'Unfollowed',
+                data: {{ chart.unfollowed | tojson }},
+                borderColor: '#e06c75',
+                backgroundColor: 'rgba(224,108,117,0.1)',
+                tension: 0.3,
+                fill: true,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+    }
+});
+</script>
+{% endif %}
+
 {% if events %}
     {% for event in events %}
     <div class="card">
         <div class="card-meta">
             <span class="date">{{ event.occurred_at[:16] }}</span>
-            <span class="badge badge-{{ event.event_type }}" style="background:{% if event.event_type == 'followed' %}var(--accent){% else %}#e06c75{% endif %};color:#fff;">
+            <span class="badge" style="background:{% if event.event_type == 'followed' %}var(--accent){% else %}#e06c75{% endif %};color:#fff;">
                 {% if event.event_type == 'followed' %}&#43; followed{% else %}&minus; unfollowed{% endif %}
             </span>
         </div>

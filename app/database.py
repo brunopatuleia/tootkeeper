@@ -537,6 +537,30 @@ def get_follower_events(conn: sqlite3.Connection, page: int = 1, per_page: int =
     return [dict(r) for r in rows], total
 
 
+def get_follower_chart_data(conn: sqlite3.Connection, days: int = 30) -> dict:
+    """Return daily followed/unfollowed counts for the last N days."""
+    rows = conn.execute(
+        """SELECT substr(occurred_at, 1, 10) as day, event_type, COUNT(*) as c
+           FROM follower_events
+           WHERE occurred_at >= date('now', ?)
+           GROUP BY day, event_type
+           ORDER BY day""",
+        (f"-{days} days",),
+    ).fetchall()
+    data: dict[str, dict] = {}
+    for row in rows:
+        d = row["day"]
+        if d not in data:
+            data[d] = {"followed": 0, "unfollowed": 0}
+        data[d][row["event_type"]] = row["c"]
+    labels = sorted(data.keys())
+    return {
+        "labels": labels,
+        "followed": [data[d]["followed"] for d in labels],
+        "unfollowed": [data[d]["unfollowed"] for d in labels],
+    }
+
+
 def get_follower_counts(conn: sqlite3.Connection) -> dict:
     current = conn.execute("SELECT COUNT(*) as c FROM followers").fetchone()["c"]
     followed = conn.execute("SELECT COUNT(*) as c FROM follower_events WHERE event_type='followed'").fetchone()["c"]

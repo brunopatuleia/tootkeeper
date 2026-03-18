@@ -25,6 +25,7 @@ from app.database import (
     get_bookmarks,
     get_db,
     get_favorites,
+    get_follower_chart_data,
     get_follower_counts,
     get_follower_events,
     get_hashtag_counts,
@@ -729,11 +730,13 @@ async def followers_page(request: Request, page: int = Query(1, ge=1)):
     with get_db() as conn:
         events, total = get_follower_events(conn, page=page)
         counts = get_follower_counts(conn)
+        chart = get_follower_chart_data(conn)
     pagination = _paginate(page, 40, total)
     return templates.TemplateResponse("followers.html", {
         "request": request,
         "events": events,
         "counts": counts,
+        "chart": chart,
         "pagination": pagination,
     })
 
