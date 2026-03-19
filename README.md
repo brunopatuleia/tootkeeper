@@ -12,9 +12,11 @@ A self-hosted Mastodon activity archiver with full-text search. Automatically sa
 - **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
 - **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz/Navidrome), last-watched movie (Letterboxd), and last-read book (Goodreads)
 - **Audiobookshelf integration** - Post a toot with cover art automatically when you start a new audiobook
-- **Album listening posts** - Post automatically when you finish listening to an album on Navidrome (≥75% of tracks)
+- **Album listening posts** - Post automatically when you finish listening to an album on Navidrome (≥65% of tracks, in order)
+- **Navidrome loved tracks** - Post a toot with cover art when you star/love a track in Navidrome
 - **Weekly music recap** - Post your top 5 artists every Monday (Last.fm, ListenBrainz, or Navidrome)
-- **AI-powered roast** - Optional AI roast on your dashboard that roasts your posting habits (supports Anthropic, OpenAI, Gemini, Ollama); optionally post it to Mastodon
+- **Follower tracking** - See who follows and unfollows you, with a full history table
+- **AI-powered roast** - Dashboard roast that learns your taste via 👍/👎 feedback; opens Mastodon compose window pre-filled so you decide before posting
 - **Optional password protection** - Lock the web UI behind a password with `APP_PASSWORD`
 - **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
 - **Automatic sync** - Polls for new activity every 5 minutes (configurable)
@@ -178,7 +180,7 @@ Already-posted book IDs are tracked in the database so you'll never get duplicat
 
 ## Album Listening Posts (Navidrome)
 
-Connect Tootkeeper to your Navidrome server to automatically post a toot with the album cover when you finish listening to an album. "Finished" means ≥75% of the album's tracks were heard in a single listening session (tracked between polls).
+Connect Tootkeeper to your Navidrome server to automatically post a toot with the album cover when you finish listening to an album. "Finished" means ≥65% of the album's tracks were heard in a single session, **in track order** — skipping backwards resets the session.
 
 **Post format:**
 ```
@@ -190,15 +192,53 @@ Artist Name
 #NowPlaying #Rock #Alternative
 ```
 
-Genres are pulled from Navidrome and appended as hashtags. Requires Navidrome configured in **Settings → Profile Fields → Music**.
+Genres are pulled from Navidrome and appended as hashtags (up to 5). Requires Navidrome configured in **Settings → Profile Fields → Music**.
 
 Enable in **Settings → Auto Toots → Album Listening Posts**.
+
+## Loved Track Posts (Navidrome)
+
+Automatically posts a toot with the album cover whenever you star/love a track in Navidrome.
+
+**Post format:**
+```
+Artist - Track Title
+
+[cover image]
+
+#NowPlaying #Genre
+```
+
+Enable in **Settings → Auto Toots → Navidrome — Loved Track**. Tootkeeper polls your starred list on each music update cycle and detects new stars within ~60 seconds.
+
+## Follower Tracking
+
+Tootkeeper tracks every follow and unfollow event on your account. The **Users** page shows:
+
+- A line chart of follows and unfollows over time
+- A table of everyone who has unfollowed you, with their avatar, handle, and the date it happened
+
+Follower data is synced automatically on every poll cycle.
 
 ## Weekly Music Recap
 
 Post your top 5 most-listened artists of the past week every Monday at midnight. Uses whichever music source is configured (Last.fm, ListenBrainz, or Navidrome).
 
 Enable in **Settings → Auto Toots → Weekly Music Recap**. Customize the hashtags or leave blank for defaults (`#music #weeklyrecap`).
+
+## AI Roast
+
+The dashboard shows an AI-generated roast of your posting habits based on your archived activity. Supports Anthropic (Claude), OpenAI (GPT), Google (Gemini), and any OpenAI-compatible endpoint (Ollama, LM Studio, etc.).
+
+### Feedback learning
+
+Rate each roast with 👍 or 👎. Liked roasts are used as style examples for future AI generations. Disliked roasts are permanently blacklisted and also feed into the prompt as negative examples — the AI learns to avoid them.
+
+### Posting
+
+Clicking **Toot This** opens your Mastodon compose window pre-filled with the roast text and `Roasted by TootKeeper` at the bottom. You can edit or delete any part of it before posting.
+
+Configure in **Settings → AI Roast**.
 
 ## What Gets Archived
 
