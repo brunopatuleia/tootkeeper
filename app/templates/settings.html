@@ -338,6 +338,14 @@
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
+                        <input type="checkbox" name="pu_nd_star_toot_enabled" value="1" {{ 'checked' if settings.get('pu_nd_star_toot_enabled', '0') == '1' }}>
+                        <h2>Navidrome — Loved Track</h2>
+                    </label>
+                    <p class="setup-hint" style="margin: 0.4rem 0 0.75rem 0;">Posts a toot with cover art when you star/love a track in Navidrome.</p>
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
+                    <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_abs_enabled" value="1" {{ 'checked' if settings.get('pu_abs_enabled', '0') == '1' }} onchange="toggleSection('abs-fields', this.checked)">
                         <h2>Audiobookshelf — New Audiobook</h2>
                     </label>

@@ -295,6 +295,22 @@ class NavidromeClient:
             logger.error(f"Navidrome top artists failed: {e}")
             return []
 
+    def get_starred_songs(self) -> list[dict]:
+        """Return all currently starred/loved songs from Navidrome."""
+        try:
+            params = self._auth_params()
+            resp = requests.get(self._api_url("getStarred2"), params=params, timeout=10)
+            data = self._parse_response(resp)
+            if not data:
+                return []
+            songs = data.get("starred2", {}).get("song", [])
+            if isinstance(songs, dict):
+                songs = [songs]
+            return songs or []
+        except Exception as e:
+            logger.error(f"Navidrome getStarred2 failed: {e}")
+            return []
+
     def get_recent_track(self) -> Optional[dict]:
         try:
             # Try getNowPlaying first
@@ -736,6 +752,16 @@ def _format_album_toot(album: dict, settings: dict) -> str:
     return "\n".join([artist, album_line, "", hashtags])
 
 
+def _format_starred_toot(song: dict) -> str:
+    """Format a toot for a newly starred Navidrome track."""
+    artist = song.get("artist", "Unknown Artist")
+    title = song.get("title", "Unknown Title")
+    genre = song.get("genre", "")
+    genre_tag = "#" + "".join(w.capitalize() for w in genre.split()) if genre else ""
+    hashtags = f"#NowPlaying {genre_tag}".strip() if genre_tag else "#NowPlaying"
+    return f"{artist} - {title}\n\n{hashtags}"
+
+
 def _format_abs_toot(book: dict, settings: dict) -> str:
     """Format a toot for a newly started Audiobookshelf book."""
     title = book.get("title", "Unknown")
@@ -1063,10 +1089,10 @@ class ProfileUpdater:
 
                         # Album listen detection — always poll Navidrome directly so albumId is available
                         # (primary music source may be Last.fm which has no albumId)
+                        navidrome_client = next(
+                            (c for c in music_clients if isinstance(c, NavidromeClient)), None
+                        )
                         if settings.get("pu_album_enabled") == "1":
-                            navidrome_client = next(
-                                (c for c in music_clients if isinstance(c, NavidromeClient)), None
-                            )
                             nd_track = navidrome_client.get_recent_track() if navidrome_client else None
                             if navidrome_client and nd_track and nd_track.get("albumId") and nd_track.get("now_playing"):
                                 album_id = nd_track["albumId"]
@@ -1130,6 +1156,44 @@ class ProfileUpdater:
                                             self._album_session["posted"] = True
                                         except MastodonError as e:
                                             logger.error(f"Failed to post album toot: {e}")
+
+                        # Navidrome starred track → toot
+                        if settings.get("pu_nd_star_toot_enabled") == "1" and navidrome_client:
+                            try:
+                                starred = navidrome_client.get_starred_songs()
+                                starred_ids = {str(s["id"]) for s in starred}
+                                with get_db() as conn:
+                                    known_raw = get_setting(conn, "pu_nd_starred_ids") or "[]"
+                                    known_ids = set(json.loads(known_raw))
+                                new_ids = starred_ids - known_ids
+                                for song in starred:
+                                    if str(song["id"]) not in new_ids:
+                                        continue
+                                    toot_text = _format_starred_toot(song)
+                                    cover_id = song.get("coverArt") or song.get("albumId")
+                                    media_ids = None
+                                    if cover_id:
+                                        cover_bytes = navidrome_client.get_cover_art_bytes(cover_id)
+                                        if cover_bytes:
+                                            try:
+                                                media = mastodon.media_post(
+                                                    BytesIO(cover_bytes),
+                                                    mime_type="image/jpeg",
+                                                    description=f"{song.get('artist')} - {song.get('title')}",
+                                                )
+                                                media_ids = [media["id"]]
+                                            except MastodonError as e:
+                                                logger.error(f"Failed to upload cover for starred toot: {e}")
+                                    try:
+                                        mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
+                                        logger.info(f"Posted starred toot: {song.get('artist')} - {song.get('title')}")
+                                    except MastodonError as e:
+                                        logger.error(f"Failed to post starred toot: {e}")
+                                if starred_ids != known_ids:
+                                    with get_db() as conn:
+                                        set_setting(conn, "pu_nd_starred_ids", json.dumps(list(starred_ids)))
+                            except Exception as e:
+                                logger.error(f"Navidrome star toot check failed: {e}")
 
                     # Movie update
                     if letterboxd and now - self.last_movie_update >= movie_interval:

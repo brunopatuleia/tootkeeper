@@ -865,6 +865,7 @@ AUTO_TOOTS_CHECKBOX_KEYS = [
     "pu_books_post_start", "pu_books_post_finish",
     "pu_album_enabled",
     "pu_abs_enabled",
+    "pu_nd_star_toot_enabled",
 ]
 
 
