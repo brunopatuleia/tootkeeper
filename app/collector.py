@@ -144,7 +144,7 @@ def _fetch_all_pages(fetch_func, client=None, since_id=None, limit=40, stop_on_i
         new_cursor = page._pagination_prev.get('min_id')
 
     all_items.extend(page)
-    pages_fetched = 1
+s    pages_fetched = 1
 
     while page:
         if client:
