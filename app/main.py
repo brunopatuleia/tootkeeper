@@ -616,8 +616,6 @@ async def index(request: Request):
         notifs, _ = get_notifications(conn, page=1, per_page=10)
         settings = get_all_settings(conn)
         roast = generate_roast(conn)
-    creds = _get_credentials()
-    instance_url = creds[0] if creds else ""
     return templates.TemplateResponse("index.html", {
         "request": request,
         "stats": stats,
@@ -625,7 +623,7 @@ async def index(request: Request):
         "recent_notifications": notifs,
         "account": settings,
         "roast": roast,
-        "instance_url": instance_url,
+        "instance_url": settings.get("instance_url", ""),
     })
 
 
