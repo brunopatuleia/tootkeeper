@@ -13,17 +13,19 @@
         </div>
         <div class="nav-links">
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+            <span class="nav-sep"></span>
             <a href="/toots" class="{% if request.url.path == '/toots' %}active{% endif %}">Toots</a>
-            <a href="/notifications" class="{% if request.url.path == '/notifications' %}active{% endif %}">Notifications</a>
+            <a href="/notifications" class="{% if request.url.path == '/notifications' %}active{% endif %}">Notifs</a>
             <a href="/favorites" class="{% if request.url.path == '/favorites' %}active{% endif %}">Favorites</a>
             <a href="/bookmarks" class="{% if request.url.path == '/bookmarks' %}active{% endif %}">Bookmarks</a>
+            <span class="nav-sep"></span>
             <a href="/followers" class="{% if request.url.path == '/followers' %}active{% endif %}">Users</a>
             <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
         </div>
         <form class="nav-search" action="/search" method="get">
             <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
-            <button type="submit">Search</button>
+            <button type="submit">&#128269;</button>
         </form>
         <a href="/settings" class="nav-settings {% if request.url.path == '/settings' %}active{% endif %}" title="Settings">&#9881;</a>
     </nav>
