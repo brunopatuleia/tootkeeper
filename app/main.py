@@ -19,7 +19,7 @@ from mastodon import Mastodon
 from app.collector import run_full_sync
 from app.config import APP_PASSWORD, APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL, VERSION
 from app.profile_updater import ProfileUpdater
-from app.roast import generate_roast
+from app.roast import generate_roast, _add_to_roast_history
 from app.database import (
     get_all_settings,
     get_bookmarks,
@@ -546,6 +546,16 @@ async def api_rate_roast(request: Request):
             "INSERT INTO roast_ratings (roast_text, rating) VALUES (?, ?)",
             (roast, rating),
         )
+        if rating == -1:
+            # Add to history so this roast is never served again
+            _add_to_roast_history(conn, roast)
+            # Also remove it from the pool if it's still there
+            pool_raw = get_setting(conn, "roast_pool")
+            if pool_raw:
+                import json as _json
+                pool = _json.loads(pool_raw)
+                pool = [r for r in pool if r != roast]
+                set_setting(conn, "roast_pool", _json.dumps(pool))
     return JSONResponse({"status": "ok"})
 
 
