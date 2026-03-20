@@ -744,36 +744,42 @@ def get_follower_counts(conn: sqlite3.Connection) -> dict:
 
 
 def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100, days: int | None = None) -> list[dict]:
-    """Extract hashtag counts from raw_json across toots, favorites, and bookmarks."""
-    from collections import Counter
-    date_sql = f"AND created_at >= datetime('now', '-{days} days')" if days else ""
-    counts = Counter()
-    for table in ("toots", "favorites", "bookmarks"):
-        rows = conn.execute(f"SELECT raw_json FROM {table} WHERE raw_json IS NOT NULL {date_sql}").fetchall()
-        for row in rows:
-            try:
-                data = json.loads(row["raw_json"])
-                tags = data.get("tags", [])
-                # Also check reblog tags
-                reblog = data.get("reblog")
-                if reblog and isinstance(reblog, dict):
-                    tags = tags + reblog.get("tags", [])
-                for tag in tags:
-                    if isinstance(tag, dict) and tag.get("name"):
-                        counts[tag["name"].lower()] += 1
-            except (json.JSONDecodeError, TypeError):
-                continue
-    most_common = counts.most_common(limit)
-    if not most_common:
+    """Extract hashtag counts from raw_json using SQLite json_each — no Python parsing."""
+    date_clause = f"AND created_at >= datetime('now', '-{days} days')" if days else ""
+    query = f"""
+        SELECT hashtag, COUNT(*) as count
+        FROM (
+            SELECT lower(json_extract(t.value, '$.name')) as hashtag
+            FROM toots, json_each(raw_json, '$.tags') t
+            WHERE json_type(raw_json, '$.tags') = 'array' {date_clause}
+            UNION ALL
+            SELECT lower(json_extract(t.value, '$.name')) as hashtag
+            FROM toots, json_each(raw_json, '$.reblog.tags') t
+            WHERE json_type(raw_json, '$.reblog.tags') = 'array' {date_clause}
+            UNION ALL
+            SELECT lower(json_extract(t.value, '$.name')) as hashtag
+            FROM favorites, json_each(raw_json, '$.tags') t
+            WHERE json_type(raw_json, '$.tags') = 'array' {date_clause}
+            UNION ALL
+            SELECT lower(json_extract(t.value, '$.name')) as hashtag
+            FROM bookmarks, json_each(raw_json, '$.tags') t
+            WHERE json_type(raw_json, '$.tags') = 'array' {date_clause}
+        )
+        WHERE hashtag IS NOT NULL AND hashtag != ''
+        GROUP BY hashtag
+        ORDER BY count DESC
+        LIMIT ?
+    """
+    rows = conn.execute(query, (limit,)).fetchall()
+    if not rows:
         return []
-    max_count = most_common[0][1]
-    min_count = most_common[-1][1]
+    max_count = rows[0]["count"]
+    min_count = rows[-1]["count"]
     result = []
-    for name, count in most_common:
-        if max_count == min_count:
-            weight = 3
-        else:
-            weight = 1 + 4 * (count - min_count) / (max_count - min_count)
-        result.append({"name": name, "count": count, "weight": round(weight, 2)})
-    result.sort(key=lambda t: t["count"], reverse=True)
+    for row in rows:
+        weight = (
+            3 if max_count == min_count
+            else 1 + 4 * (row["count"] - min_count) / (max_count - min_count)
+        )
+        result.append({"name": row["hashtag"], "count": row["count"], "weight": round(weight, 2)})
     return result

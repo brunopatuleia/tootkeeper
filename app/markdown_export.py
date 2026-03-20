@@ -3,15 +3,17 @@
 import logging
 import os
 import sqlite3
+from collections import defaultdict
+from html.parser import HTMLParser
 from pathlib import Path
 
 from app.config import DB_PATH
 from app.database import get_db, get_sync_state, set_sync_state
-from html.parser import HTMLParser
 
 logger = logging.getLogger(__name__)
 
 MARKDOWN_PATH = Path(DB_PATH).parent / "markdown"
+
 
 class _Strip(HTMLParser):
     def __init__(self):
@@ -22,6 +24,7 @@ class _Strip(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag in ("br", "p"):
             self._parts.append("\n")
+
 
 def _toot_to_markdown(toot: sqlite3.Row) -> str:
     """Format a single toot as a Markdown block."""
@@ -66,27 +69,26 @@ def export_new_toots(conn: sqlite3.Connection) -> int:
     MARKDOWN_PATH.mkdir(parents=True, exist_ok=True)
     newest_id = last_id
 
+    # Group toots by target file to minimise open/close cycles
+    toots_by_file: dict = defaultdict(list)
     for toot in rows:
         created = toot["created_at"] or ""
         year = created[:4]
         month = created[5:7]
         if not year or not month:
             continue
-
-        year_dir = MARKDOWN_PATH / year
-        year_dir.mkdir(exist_ok=True)
-        filepath = year_dir / f"{month}.md"
-
-        # Write month header if file is new
-        if not filepath.exists():
-            month_name = _month_name(int(month))
-            filepath.write_text(f"# {month_name} {year}\n\n", encoding="utf-8")
-
-        with filepath.open("a", encoding="utf-8") as f:
-            f.write(_toot_to_markdown(toot))
-
+        filepath = MARKDOWN_PATH / year / f"{month}.md"
+        toots_by_file[filepath].append(toot)
         if int(toot["id"]) > int(newest_id):
             newest_id = toot["id"]
+
+    for filepath, toots in toots_by_file.items():
+        filepath.parent.mkdir(exist_ok=True)
+        if not filepath.exists():
+            month_name = _month_name(int(filepath.stem))
+            filepath.write_text(f"# {month_name} {filepath.parent.name}\n\n", encoding="utf-8")
+        with filepath.open("a", encoding="utf-8") as f:
+            f.write("".join(_toot_to_markdown(t) for t in toots))
 
     if newest_id != last_id:
         set_sync_state(conn, "markdown_last_exported_id", newest_id)

@@ -4,7 +4,8 @@ import json
 import logging
 import sqlite3
 import time
-import urllib.request
+
+import requests
 
 from app.config import AI_API_KEY, AI_BASE_URL, AI_MODEL, AI_PROVIDER
 from app.database import get_setting, set_setting
@@ -130,51 +131,49 @@ def _call_ai_api(provider: str, api_key: str, model: str, base_url: str, prompt:
         if provider == "anthropic":
             url = "https://api.anthropic.com/v1/messages"
             model = model or "claude-sonnet-4-5-20250929"
-            payload = json.dumps({
+            payload = {
                 "model": model,
                 "max_tokens": 1024,
                 "messages": [{"role": "user", "content": prompt}],
-            })
-            req = urllib.request.Request(url, data=payload.encode(), headers={
+            }
+            headers = {
                 "Content-Type": "application/json",
                 "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
-            })
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read())
-                return data["content"][0]["text"]
+            }
+            resp = requests.post(url, json=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()["content"][0]["text"]
 
         elif provider in ("openai", "openai-compatible"):
             url = (base_url.rstrip("/") if base_url else "https://api.openai.com/v1") + "/chat/completions"
             model = model or ("gpt-4o" if provider == "openai" else "llama3")
-            payload = json.dumps({
+            payload = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 1024,
-            })
+            }
             headers = {"Content-Type": "application/json"}
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
-            req = urllib.request.Request(url, data=payload.encode(), headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read())
-                return data["choices"][0]["message"]["content"]
+            resp = requests.post(url, json=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
 
         elif provider == "gemini":
             model = model or "gemini-2.0-flash"
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            payload = json.dumps({
-                "contents": [{"parts": [{"text": prompt}]}],
-            })
-            req = urllib.request.Request(url, data=payload.encode(), headers={
-                "Content-Type": "application/json",
-            })
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read())
-                return data["candidates"][0]["content"]["parts"][0]["text"]
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            headers = {"Content-Type": "application/json"}
+            resp = requests.post(url, json=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-    except Exception as e:
+    except requests.RequestException as e:
         logger.error(f"AI API call failed ({provider}): {e}")
+        return None
+    except (KeyError, IndexError) as e:
+        logger.error(f"AI API response format unexpected ({provider}): {e}")
         return None
 
 

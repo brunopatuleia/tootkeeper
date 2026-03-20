@@ -1,5 +1,6 @@
 import re
 import sqlite3
+from collections import defaultdict
 
 
 def _sanitize_fts_query(query: str) -> str:
@@ -80,27 +81,32 @@ def search(
     """
     rows = conn.execute(results_sql, search_params).fetchall()
 
-    results = []
-    for row in rows:
-        item = dict(row)
-        # Fetch the source record for additional context
-        source = _get_source_record(conn, row["source_type"], row["source_id"])
-        if source:
-            item["source"] = source
-        results.append(item)
-
-    return results, total
-
-
-def _get_source_record(conn: sqlite3.Connection, source_type: str, source_id: str) -> dict | None:
+    # Batch-fetch source records to avoid N+1 queries
     table_map = {
         "toot": "toots",
         "notification": "notifications",
         "favorite": "favorites",
         "bookmark": "bookmarks",
     }
-    table = table_map.get(source_type)
-    if not table:
-        return None
-    row = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (source_id,)).fetchone()
-    return dict(row) if row else None
+    ids_by_type: dict[str, list] = defaultdict(list)
+    for row in rows:
+        ids_by_type[row["source_type"]].append(row["source_id"])
+
+    sources_map: dict[tuple, dict] = {}
+    for source_type, source_ids in ids_by_type.items():
+        table = table_map.get(source_type)
+        if not table:
+            continue
+        placeholders = ",".join("?" * len(source_ids))
+        for s_row in conn.execute(f"SELECT * FROM {table} WHERE id IN ({placeholders})", source_ids):
+            sources_map[(source_type, s_row["id"])] = dict(s_row)
+
+    results = []
+    for row in rows:
+        item = dict(row)
+        source = sources_map.get((row["source_type"], row["source_id"]))
+        if source:
+            item["source"] = source
+        results.append(item)
+
+    return results, total
