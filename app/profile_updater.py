@@ -20,7 +20,6 @@ from typing import Any, Optional
 
 import feedparser
 import requests
-from bs4 import BeautifulSoup
 from mastodon import Mastodon, MastodonError
 
 from app.database import get_all_settings, get_db, get_setting, set_setting
@@ -393,26 +392,28 @@ class GoodreadsClient:
     def __init__(self, rss_url: str):
         self.rss_url = rss_url
 
+    @staticmethod
+    def _parse_title_author(text: str) -> tuple[str, str] | None:
+        """Extract (title, author) from 'Title by Author' using the last ' by '."""
+        m = re.search(r"^(.+) by (.+)$", text.strip())
+        if m:
+            return m.group(1).strip(), m.group(2).strip()
+        return None
+
     def get_finished_book(self) -> Optional[dict]:
         try:
             feed = feedparser.parse(self.rss_url)
             if not feed.entries:
                 return None
             for entry in feed.entries:
-                description = entry.get("description", "")
-                rating_match = re.search(r"gave (\d+(?:\.\d+)?) stars? to", description, re.IGNORECASE)
-                if not rating_match:
-                    continue
-                rating = float(rating_match.group(1))
-                soup = BeautifulSoup(description, "html.parser")
-                title_elem = soup.find("a", class_="bookTitle")
-                author_elem = soup.find("a", class_="authorName")
-                if title_elem and author_elem:
-                    return {
-                        "title": title_elem.get_text(strip=True),
-                        "author": author_elem.get_text(strip=True),
-                        "rating": rating,
-                    }
+                title = entry.get("title", "")
+                # "Username gave X.XX stars to Book Title by Author"
+                m = re.search(r"gave (\d+(?:\.\d+)?) stars? to (.+)", title, re.IGNORECASE)
+                if m:
+                    rating = float(m.group(1))
+                    parsed = self._parse_title_author(m.group(2))
+                    if parsed:
+                        return {"title": parsed[0], "author": parsed[1], "rating": rating}
             return None
         except Exception as e:
             logger.error(f"Goodreads RSS failed: {e}")
@@ -434,40 +435,36 @@ class GoodreadsClient:
                 if since_entry_id and entry_id == since_entry_id:
                     break
                 title = entry.get("title", "")
-                description = entry.get("description", "")
 
-                # Finished / rated book
-                rating_match = re.search(r"gave (\d+(?:\.\d+)?) stars? to", description, re.IGNORECASE)
-                if rating_match:
-                    rating = float(rating_match.group(1))
-                    soup = BeautifulSoup(description, "html.parser")
-                    title_elem = soup.find("a", class_="bookTitle")
-                    author_elem = soup.find("a", class_="authorName")
-                    if title_elem:
-                        events.append({
-                            "type": "finished",
-                            "book_title": title_elem.get_text(strip=True),
-                            "author": author_elem.get_text(strip=True) if author_elem else "",
-                            "rating": rating,
-                            "entry_id": entry_id,
-                        })
+                # Finished / rated: "Username gave X stars to Title by Author"
+                m = re.search(r"gave (\d+(?:\.\d+)?) stars? to (.+)", title, re.IGNORECASE)
+                if m:
+                    rating = float(m.group(1))
+                    parsed = self._parse_title_author(m.group(2))
+                    events.append({
+                        "type": "finished",
+                        "book_title": parsed[0] if parsed else m.group(2).strip(),
+                        "author": parsed[1] if parsed else "",
+                        "rating": rating,
+                        "entry_id": entry_id,
+                    })
                     continue
 
-                # Started / currently reading
-                title_lower = title.lower()
-                if "currently-reading" in title_lower or "currently reading" in title_lower or \
-                        "started reading" in title_lower:
-                    soup = BeautifulSoup(description, "html.parser")
-                    title_elem = soup.find("a", class_="bookTitle")
-                    author_elem = soup.find("a", class_="authorName")
-                    if title_elem:
-                        events.append({
-                            "type": "started",
-                            "book_title": title_elem.get_text(strip=True),
-                            "author": author_elem.get_text(strip=True) if author_elem else "",
-                            "rating": None,
-                            "entry_id": entry_id,
-                        })
+                # Started: "Username is currently reading Title by Author"
+                #       or "Username started reading Title by Author"
+                m = re.search(
+                    r"(?:is currently reading|started reading)\s+(.+)",
+                    title, re.IGNORECASE
+                )
+                if m:
+                    parsed = self._parse_title_author(m.group(1))
+                    events.append({
+                        "type": "started",
+                        "book_title": parsed[0] if parsed else m.group(1).strip(),
+                        "author": parsed[1] if parsed else "",
+                        "rating": None,
+                        "entry_id": entry_id,
+                    })
 
             return events
         except Exception as e:
