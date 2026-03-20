@@ -513,21 +513,21 @@ def get_top_replied_to(conn: sqlite3.Connection, limit: int = 25) -> list[dict]:
     rows = conn.execute(
         """
         SELECT
-            json_extract(t.raw_json, '$.mentions[0].acct')          AS acct,
-            COUNT(*)                                                  AS reply_count,
-            MAX(n.account_display_name)                              AS display_name,
-            MAX(n.account_avatar)                                    AS avatar
+            json_extract(t.raw_json, '$.mentions[0].acct')  AS acct,
+            COUNT(*)                                          AS reply_count,
+            MAX(n.account_display_name)                      AS display_name,
+            MAX(n.account_avatar)                            AS avatar
         FROM toots t
         LEFT JOIN (
-            SELECT account_id,
+            SELECT account_acct,
                    MAX(account_display_name) AS account_display_name,
                    MAX(account_avatar)       AS account_avatar
             FROM notifications
-            GROUP BY account_id
-        ) n ON t.in_reply_to_account_id = n.account_id
+            GROUP BY account_acct
+        ) n ON lower(json_extract(t.raw_json, '$.mentions[0].acct')) = lower(n.account_acct)
         WHERE t.in_reply_to_id IS NOT NULL
           AND json_extract(t.raw_json, '$.mentions[0].acct') IS NOT NULL
-        GROUP BY acct
+        GROUP BY lower(json_extract(t.raw_json, '$.mentions[0].acct'))
         ORDER BY reply_count DESC
         LIMIT ?
         """,
