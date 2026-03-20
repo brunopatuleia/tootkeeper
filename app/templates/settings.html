@@ -437,6 +437,11 @@
                            placeholder="Friends or Stalkers"
                            value="{{ settings.get('interactions_tab_name', '') }}">
                     <p class="setup-hint" style="margin-top:0.25rem;">Name shown in the navbar for the reply interactions page. Leave blank for default.</p>
+                    <label for="interactions_days" style="margin-top:0.75rem;">Window (days)</label>
+                    <input type="number" id="interactions_days" name="interactions_days"
+                           min="1" placeholder="15"
+                           value="{{ settings.get('interactions_days', '') }}">
+                    <p class="setup-hint" style="margin-top:0.25rem;">How many days back to look for interactions. Default: 15.</p>
                 </div>
                 <div class="settings-actions" style="margin-top:1rem;">
                     <button type="submit" class="btn btn-primary">Save</button>

@@ -488,8 +488,8 @@ def is_configured(conn: sqlite3.Connection) -> bool:
     return bool(token and instance)
 
 
-def get_top_repliers(conn: sqlite3.Connection, limit: int = 25) -> list[dict]:
-    """People who reply to you most (mention notifications, last 7 days)."""
+def get_top_repliers(conn: sqlite3.Connection, limit: int = 25, days: int = 15) -> list[dict]:
+    """People who reply to you most (mention notifications, configurable window)."""
     rows = conn.execute(
         """
         SELECT
@@ -499,18 +499,18 @@ def get_top_repliers(conn: sqlite3.Connection, limit: int = 25) -> list[dict]:
             COUNT(*)                         AS reply_count
         FROM notifications
         WHERE type = 'mention'
-          AND created_at >= datetime('now', '-15 days')
+          AND created_at >= datetime('now', ? || ' days')
         GROUP BY account_acct
         ORDER BY reply_count DESC
         LIMIT ?
         """,
-        (limit,),
+        (f"-{days}", limit),
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def get_top_replied_to(conn: sqlite3.Connection, limit: int = 25) -> list[dict]:
-    """People you reply to most (your own reply toots, last 7 days)."""
+def get_top_replied_to(conn: sqlite3.Connection, limit: int = 25, days: int = 15) -> list[dict]:
+    """People you reply to most (your own reply toots, configurable window)."""
     rows = conn.execute(
         """
         SELECT
@@ -528,12 +528,12 @@ def get_top_replied_to(conn: sqlite3.Connection, limit: int = 25) -> list[dict]:
         ) n ON lower(json_extract(t.raw_json, '$.mentions[0].acct')) = lower(n.account_acct)
         WHERE t.in_reply_to_id IS NOT NULL
           AND json_extract(t.raw_json, '$.mentions[0].acct') IS NOT NULL
-          AND t.created_at >= datetime('now', '-15 days')
+          AND t.created_at >= datetime('now', ? || ' days')
         GROUP BY lower(json_extract(t.raw_json, '$.mentions[0].acct'))
         ORDER BY reply_count DESC
         LIMIT ?
         """,
-        (limit,),
+        (f"-{days}", limit),
     ).fetchall()
     return [dict(r) for r in rows]
 

@@ -795,14 +795,16 @@ async def interactions_page(request: Request):
     if redirect:
         return redirect
     with get_db() as conn:
-        repliers = get_top_repliers(conn)
-        replied_to = get_top_replied_to(conn)
+        days = max(1, int(get_setting(conn, "interactions_days") or 15))
+        repliers = get_top_repliers(conn, days=days)
+        replied_to = get_top_replied_to(conn, days=days)
         tab_name = get_setting(conn, "interactions_tab_name") or "Friends or Stalkers"
     return templates.TemplateResponse("interactions.html", {
         "request": request,
         "repliers": repliers,
         "replied_to": replied_to,
         "tab_name": tab_name,
+        "days": days,
     })
 
 
@@ -813,6 +815,9 @@ async def settings_app(request: Request):
     form = await request.form()
     with get_db() as conn:
         set_setting(conn, "interactions_tab_name", str(form.get("interactions_tab_name", "")).strip())
+        days_val = str(form.get("interactions_days", "")).strip()
+        if days_val.isdigit() and int(days_val) >= 1:
+            set_setting(conn, "interactions_days", days_val)
     return RedirectResponse(url="/settings?saved=1#app", status_code=302)
 
 
