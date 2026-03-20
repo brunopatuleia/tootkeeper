@@ -91,7 +91,7 @@ def download_media(status: dict):
             continue
 
         media_type = media.get("type", "image")
-        if media_type not in ("image", "gifv"):
+        if media_type not in ("image", "gifv", "video", "audio"):
             continue
 
         url = media.get("url") or media.get("remote_url")
