@@ -643,7 +643,7 @@ def get_top_boosted_by_me(conn: sqlite3.Connection, limit: int = 25, days: int |
     return [dict(r) for r in rows]
 
 
-def get_topic_counts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
+def get_topic_counts(conn: sqlite3.Connection, limit: int = 50, days: int | None = None) -> list[dict]:
     """Extract common topics/words from toot content, excluding stopwords and short words."""
     from collections import Counter
     import re
@@ -663,9 +663,10 @@ def get_topic_counts(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
         "quando", "onde", "quem", "qual", "cada", "todo", "toda", "todos", "todas",
         "http", "https", "www", "com",
     }
+    date_sql = f"AND created_at >= datetime('now', '-{days} days')" if days else ""
     counts = Counter()
     for table in ("toots", "favorites", "bookmarks"):
-        rows = conn.execute(f"SELECT content_text FROM {table} WHERE content_text IS NOT NULL AND content_text != ''").fetchall()
+        rows = conn.execute(f"SELECT content_text FROM {table} WHERE content_text IS NOT NULL AND content_text != '' {date_sql}").fetchall()
         for row in rows:
             words = re.findall(r'[a-zA-ZÀ-ÿ]{4,}', row["content_text"].lower())
             for word in words:
@@ -742,12 +743,13 @@ def get_follower_counts(conn: sqlite3.Connection) -> dict:
     return {"current": current, "followed": followed, "unfollowed": unfollowed}
 
 
-def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100) -> list[dict]:
+def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100, days: int | None = None) -> list[dict]:
     """Extract hashtag counts from raw_json across toots, favorites, and bookmarks."""
     from collections import Counter
+    date_sql = f"AND created_at >= datetime('now', '-{days} days')" if days else ""
     counts = Counter()
     for table in ("toots", "favorites", "bookmarks"):
-        rows = conn.execute(f"SELECT raw_json FROM {table} WHERE raw_json IS NOT NULL").fetchall()
+        rows = conn.execute(f"SELECT raw_json FROM {table} WHERE raw_json IS NOT NULL {date_sql}").fetchall()
         for row in rows:
             try:
                 data = json.loads(row["raw_json"])

@@ -745,30 +745,40 @@ async def search_page(
 
 
 @app.get("/hashtags", response_class=HTMLResponse)
-async def hashtags_page(request: Request):
+async def hashtags_page(request: Request, period: str = "all"):
     redirect = _require_setup(request)
     if redirect:
         return redirect
+    if period not in _PERIOD_DAYS:
+        period = "all"
+    days = _PERIOD_DAYS[period]
     with get_db() as conn:
-        hashtags = get_hashtag_counts(conn)
+        hashtags = get_hashtag_counts(conn, days=days)
     return templates.TemplateResponse("hashtags.html", {
         "request": request,
         "hashtags": hashtags,
         "total": len(hashtags),
+        "period": period,
+        "period_labels": _PERIOD_LABELS,
     })
 
 
 @app.get("/topics", response_class=HTMLResponse)
-async def topics_page(request: Request):
+async def topics_page(request: Request, period: str = "all"):
     redirect = _require_setup(request)
     if redirect:
         return redirect
+    if period not in _PERIOD_DAYS:
+        period = "all"
+    days = _PERIOD_DAYS[period]
     with get_db() as conn:
-        topics = get_topic_counts(conn)
+        topics = get_topic_counts(conn, days=days)
     return templates.TemplateResponse("topics.html", {
         "request": request,
         "topics": topics,
         "total": len(topics),
+        "period": period,
+        "period_labels": _PERIOD_LABELS,
     })
 
 
