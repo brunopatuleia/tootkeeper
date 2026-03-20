@@ -22,6 +22,7 @@
 
         <span class="sidebar-heading">App</span>
         <a href="#app" data-panel="app">Display</a>
+        <a href="#backup" data-panel="backup">Backup</a>
         <a href="#about" data-panel="about">About</a>
         <a href="/logout">Logout</a>
     </nav>
@@ -447,6 +448,24 @@
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
             </form>
+        </div>
+
+        <!-- ─── Backup ────────────────────────────────────────────── -->
+        <div id="panel-backup" class="settings-panel">
+            <h1>Backup</h1>
+            <div class="settings-section">
+                <p class="setup-hint" style="margin-bottom:1.25rem;">Your toots are stored in a SQLite database and also exported to human-readable Markdown files. Download either format to keep an offline copy.</p>
+
+                <h2>SQLite Database</h2>
+                <p class="setup-hint" style="margin-bottom:0.75rem;">Full backup — includes all toots, notifications, favourites, bookmarks, and settings. Open with any SQLite viewer (e.g. <a href="https://sqlitebrowser.org" target="_blank">DB Browser for SQLite</a>).</p>
+                <a href="/backup/db" class="btn btn-sync" style="display:inline-block;">Download .db</a>
+            </div>
+
+            <div class="settings-section" style="margin-top:1.5rem;">
+                <h2>Markdown Archive</h2>
+                <p class="setup-hint" style="margin-bottom:0.75rem;">Plain text — readable on any device, phone, tablet, computer. Organised by year and month. ZIP file contains one <code>.md</code> file per month.</p>
+                <a href="/backup/markdown" class="btn btn-sync" style="display:inline-block;">Download .zip</a>
+            </div>
         </div>
 
         <div id="panel-about" class="settings-panel">

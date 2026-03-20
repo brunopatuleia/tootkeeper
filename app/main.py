@@ -11,7 +11,7 @@ from urllib.parse import quote as _url_quote
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from mastodon import Mastodon
@@ -869,6 +869,42 @@ async def toot_detail(request: Request, toot_id: str):
         "request": request,
         "toot": toot,
     })
+
+
+@app.get("/backup/db")
+async def backup_db(request: Request):
+    """Download the SQLite database file."""
+    if (auth := _require_auth(request)):
+        return auth
+    from app.config import DB_PATH
+    db_file = Path(DB_PATH)
+    if not db_file.exists():
+        return HTMLResponse("Database not found", status_code=404)
+    filename = f"mastoferr_{__import__('datetime').date.today().isoformat()}.db"
+    return FileResponse(str(db_file), media_type="application/octet-stream", filename=filename)
+
+
+@app.get("/backup/markdown")
+async def backup_markdown(request: Request):
+    """Download a ZIP of all markdown toot backups."""
+    if (auth := _require_auth(request)):
+        return auth
+    from app.config import DB_PATH
+    import io, zipfile
+    md_path = Path(DB_PATH).parent / "markdown"
+    if not md_path.exists():
+        return HTMLResponse("No markdown backups found yet.", status_code=404)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for md_file in sorted(md_path.rglob("*.md")):
+            zf.write(md_file, md_file.relative_to(md_path.parent))
+    buf.seek(0)
+    filename = f"mastoferr_markdown_{__import__('datetime').date.today().isoformat()}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/health")
