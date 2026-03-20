@@ -210,6 +210,64 @@ def sync_toots(client: Mastodon):
     return len(statuses)
 
 
+def sync_notification_requests(client: Mastodon):
+    """Sync filtered notification requests (mentions from non-followers on Mastodon 4.3+).
+
+    These live in a separate inbox and are not returned by the standard
+    notifications endpoint, so we fetch them separately and upsert them
+    into the same notifications table.
+    """
+    logger.info("Syncing notification requests...")
+    base_url = client.api_base_url.rstrip("/")
+    headers = {"Authorization": f"Bearer {client.access_token}"}
+
+    # Fetch the list of pending notification requests
+    try:
+        resp = requests.get(
+            f"{base_url}/api/v1/notifications/requests",
+            headers=headers,
+            params={"limit": 80},
+            timeout=15,
+        )
+        if resp.status_code in (404, 501):
+            logger.info("Notification requests not supported by this server — skipping.")
+            return 0
+        resp.raise_for_status()
+        req_list = resp.json()
+    except Exception as e:
+        logger.warning(f"Notification requests fetch failed: {e}")
+        return 0
+
+    if not req_list:
+        return 0
+
+    count = 0
+    for req in req_list:
+        req_id = req.get("id")
+        if not req_id:
+            continue
+        try:
+            notif_resp = requests.get(
+                f"{base_url}/api/v1/notifications/requests/{req_id}/notifications",
+                headers=headers,
+                params={"limit": 80},
+                timeout=15,
+            )
+            if notif_resp.status_code == 404:
+                continue
+            notif_resp.raise_for_status()
+            notifs = notif_resp.json()
+            with get_db() as conn:
+                for notif in notifs:
+                    upsert_notification(conn, notif)
+                    count += 1
+        except Exception as e:
+            logger.warning(f"Failed fetching notifications for request {req_id}: {e}")
+
+    logger.info(f"Synced {count} notifications from filtered requests.")
+    return count
+
+
 def sync_notifications(client: Mastodon):
     """Sync notifications (likes, boosts, replies on user's toots)."""
     logger.info("Syncing notifications...")
@@ -357,7 +415,7 @@ def run_full_sync():
         client = get_client()
         counts = {
             "toots": sync_toots(client),
-            "notifications": sync_notifications(client),
+            "notifications": sync_notifications(client) + sync_notification_requests(client),
             "favorites": sync_favorites(client),
             "bookmarks": sync_bookmarks(client),
             "followers": sync_followers(client),
