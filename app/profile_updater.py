@@ -779,10 +779,7 @@ def _format_album_toot(album: dict, settings: dict) -> str:
 
     album_line = f"[{year}] {name}" if year else name
 
-    genre_tags = " ".join(
-        "#" + "".join(w.capitalize() for w in g.split())
-        for g in genres[:5]
-    )
+    genre_tags = " ".join(_genre_to_hashtag(g) for g in genres[:5])
 
     base_tags = settings.get("pu_album_hashtags", "").strip() or "#NowPlaying"
     hashtags = f"{base_tags} {genre_tags}".strip() if genre_tags else base_tags
@@ -795,7 +792,7 @@ def _format_starred_toot(song: dict) -> str:
     artist = song.get("artist", "Unknown Artist")
     title = song.get("title", "Unknown Title")
     genre = song.get("genre", "")
-    genre_tag = "#" + "".join(w.capitalize() for w in genre.split()) if genre else ""
+    genre_tag = _genre_to_hashtag(genre) if genre else ""
     hashtags = f"#NowPlaying {genre_tag}".strip() if genre_tag else "#NowPlaying"
     return f"{artist} - {title}\n\n{hashtags}"
 
@@ -892,8 +889,8 @@ def _send_discord_confirmation(
 
 
 def _genre_to_hashtag(genre: str) -> str:
-    """Convert a genre string to a hashtag, stripping & and extra spaces."""
-    cleaned = genre.replace("&", "").replace("  ", " ").strip()
+    """Convert a genre string to a hashtag, stripping non-alphanumeric characters."""
+    cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", genre).strip()
     return "#" + "".join(w.capitalize() for w in cleaned.split())
 
 
