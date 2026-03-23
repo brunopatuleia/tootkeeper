@@ -1,304 +1,39 @@
 # Mastoferr
 
-A self-hosted Mastodon activity archiver with full-text search. Automatically saves your toots, notifications, favorites, bookmarks, and media attachments to a local SQLite database.
+A self-hosted Mastodon activity archiver with full-text search, profile updater, and automated toots.
 
-> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Security reviewed and hardened by [Claude Code](https://claude.ai/claude-code) (claude-sonnet-4-6).
+> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Security reviewed by [Claude Code](https://claude.ai/claude-code) and Gemini Code Assist.
 
 ## Features
 
-- **Archive everything** - Toots, boosts, replies, notifications, favorites, bookmarks
-- **Media downloads** - Saves images locally so they're preserved even if the original is deleted
-- **Full-text search** - SQLite FTS5 powered search across all your archived content
-- **Hashtag & topic clouds** - See your most-used hashtags and topics at a glance
-- **Profile updater** - Auto-update your Mastodon profile fields with now-playing music (Last.fm/ListenBrainz/Navidrome), last-watched movie (Letterboxd), and last-read book (Goodreads)
-- **Audiobookshelf integration** - Post a toot with cover art automatically when you start a new audiobook
-- **Album listening posts** - Post automatically when you finish listening to an album on Navidrome (≥65% of tracks, in order)
-- **Navidrome loved tracks** - Post a toot with cover art when you star/love a track in Navidrome
-- **Weekly music recap** - Post your top 5 artists every Monday (Last.fm, ListenBrainz, or Navidrome)
-- **Follower tracking** - See who follows and unfollows you, with a full history table
-- **AI-powered roast** - Dashboard roast that learns your taste via 👍/👎 feedback; opens Mastodon compose window pre-filled so you decide before posting
-- **Optional password protection** - Lock the web UI behind a password with `APP_PASSWORD`
-- **OAuth login** - No tokens to copy/paste, just enter your instance and authorize
-- **Automatic sync** - Polls for new activity every 5 minutes (configurable)
-- **Settings** - Configure profile updater, AI roast, manage account, check for updates — all from one page
-- **Dark UI** - Clean, responsive web interface
-- **Any instance** - Works with any Mastodon-compatible server
-- **Docker-ready** - Single container, just `docker compose up`
+- Archive toots, notifications, favorites, bookmarks, and media
+- Full-text search (SQLite FTS5)
+- Profile updater — now-playing music, last-watched movie, last-read book
+- Auto-post when you start an audiobook (Audiobookshelf), finish an album (Navidrome), or star a track
+- Discord confirmation flow before any auto-toot is posted
+- Follower tracking with follow/unfollow history
+- Weekly music recap post
+- AI-powered roast of your posting habits
+- OAuth login — no tokens to copy/paste
+- Dark, responsive web UI
+- Docker-ready
 
-## Installation
-
-### Step 1: Install Docker
-
-**Linux (Debian/Ubuntu):**
+## Quick Start
 
 ```bash
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-
-# Add your user to the docker group (so you can run docker without sudo)
-sudo usermod -aG docker $USER
-
-# Log out and back in for the group change to take effect, then verify:
-docker --version
-```
-
-**Windows:** Download and install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
-
-**Mac:** Download and install [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
-
-### Step 2: Download Mastoferr
-
-```bash
-git clone https://github.com/brunopatuleia/mastoferr.git
-cd mastoferr
-```
-
-### Step 3: Configure
-
-```bash
-# Create your config file from the example
+git clone https://github.com/brunopatuleia/MastoFerr.git
+cd MastoFerr
 cp .env.example .env
-```
-
-Edit `.env` if you need to change the default settings:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_URL` | `http://localhost:6886` | The URL where Mastoferr is reachable (important for OAuth) |
-| `POLL_INTERVAL` | `5` | How often to check for new activity (in minutes) |
-| `DB_PATH` | `/app/data/mastoferr.db` | Where the database is stored inside the container |
-| `MEDIA_PATH` | `/app/data/media` | Where downloaded images are stored inside the container |
-| `AI_PROVIDER` | *(disabled)* | AI provider for roast: `anthropic`, `openai`, `gemini`, or `openai-compatible` |
-| `AI_API_KEY` | | Your AI provider API key |
-| `AI_MODEL` | *(auto)* | Model to use (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o`, `gemini-2.0-flash`) |
-| `AI_BASE_URL` | | Only for `openai-compatible` (e.g. `http://localhost:11434/v1` for Ollama) |
-| `APP_PASSWORD` | *(disabled)* | Optional password to protect the web UI. Leave blank for no authentication. |
-
-**Important:** If you run the app on a different port (e.g. `8080`), you **must** update `APP_URL` (e.g. `http://localhost:8080`) so the OAuth login redirects back to the correct place.
-
-AI settings can also be configured from the **Settings** page in the web UI.
-
-If you're running on a remote server, set `APP_URL` to the server's address (e.g. `http://your-server-ip:6886`).
-
-### Step 4: Start Mastoferr
-
-```bash
 docker compose up -d
 ```
 
-This builds the container and starts it in the background. First run may take a minute to download dependencies.
+Open `http://localhost:6886`, enter your Mastodon instance, and authorize.
 
-### Step 5: Connect your Mastodon account
-
-1. Open `http://localhost:6886` in your browser (or your server's IP)
-2. Enter your Mastodon instance domain (e.g. `mastodon.social`, `fosstodon.org`)
-3. Click **Login with Mastodon**
-4. You'll be redirected to your instance to authorize access (read + write:accounts for profile updates)
-5. After authorizing, Mastoferr starts archiving your full history immediately
-
-That's it! Mastoferr will continue syncing new activity every 5 minutes.
-
-### Updating
-
-```bash
-cd mastoferr
-git pull
-docker compose up --build -d
-```
-
-### Headless / Automated Setup
-
-If you prefer not to use the OAuth flow, you can set credentials directly in `.env`:
-
-```bash
-MASTODON_INSTANCE=https://mastodon.social
-MASTODON_ACCESS_TOKEN=your_access_token_here
-```
-
-To get an access token, go to your instance's **Preferences > Development > New application**, create an app with `read write:accounts` scopes, and copy the access token.
-
-## Profile Updater
-
-The **Settings** page includes a Profile Updater section that automatically updates your Mastodon profile fields with what you're currently consuming. It supports three media sources plus a custom user-defined field, with drag-and-drop reordering:
-
-### Music (Last.fm / ListenBrainz / Navidrome)
-
-Shows what you're currently listening to or your most recent track. Supports three music services with automatic fallback — if one is down, the next takes over. Checks every 60 seconds by default. When nothing is playing, the last played track stays on your profile.
-
-**Example:** 🎵 Radiohead - Karma Police
-
-### Movies (Letterboxd)
-
-Shows the last movie you watched, pulled from your public Letterboxd RSS feed. Includes the year and your star rating if you rated it. Checks every 6 hours by default.
-
-**Example:** 🎬 Oppenheimer (2023) - ★★★★½
-
-### Books (Goodreads)
-
-Shows the last book you finished and rated, pulled from your Goodreads RSS feed. Includes the author and your star rating. Checks every 6 hours by default.
-
-**Example:** 📚 Dune by Frank Herbert - ★★★★★
-
-### Book Activity Posts (Goodreads)
-
-Optionally post publicly to Mastodon when your Goodreads activity changes — when you start or finish a book. Enable the checkboxes in **Settings → Auto Toots → Book Activity Posts**.
-
-### Custom Field
-
-A user-defined field that you can set to any static text — useful for a status, a link, or anything else you want to display on your profile.
-
-### Setup
-
-Each source can be individually enabled or disabled with a checkbox in the Settings page. Drag and drop the sections to control the order fields appear on your Mastodon profile. Just enter your usernames, API keys, and RSS feed URLs for the sources you want to use. The updater runs as a background thread and only updates your profile when the content actually changes.
-
-> **Note:** Mastodon profiles allow a maximum of **4 metadata fields**. The profile updater can use up to 3 of those fields (music, movies, books) plus 1 custom field — which means it could occupy all 4 slots. Keep this in mind if you also use profile fields for other things like your website or pronouns. You can enable only the sources you need to leave room for your other fields.
-
-## Audiobookshelf Integration
-
-Connect Mastoferr to your [Audiobookshelf](https://www.audiobookshelf.org/) server to automatically post a toot with the book cover when you start listening to a new audiobook.
-
-**Post format:**
-```
-The Name of the Wind
-The Kingkiller Chronicle, Book 1
-Patrick Rothfuss
-Narrated by Nick Podehl
-[2009]
-
-[cover image]
-
-#NowReading #Audiobooks #Books #Fantasy #Epic
-```
-
-Subtitle and narrator are included when available. Genres are pulled directly from your Audiobookshelf metadata and appended as hashtags automatically (up to 5).
-
-**Optional share link:** If your Audiobookshelf server is publicly accessible, you can enter its public URL in the settings. Mastoferr will create a share link via the ABS API and append it to the toot. You can set how long the link stays active (in hours).
-
-### Setup
-
-1. In Audiobookshelf, go to **Settings → API Keys** and create a new key
-2. In Mastoferr, go to **Settings → Auto Toots → Audiobookshelf**
-3. Enter your server URL (e.g. `http://192.168.1.x:13378`) and the API token
-4. Optionally enter the public ABS URL and share link expiry (hours) for share links
-5. Save — Mastoferr polls every 15 minutes by default and posts once per book
-
-Already-posted book IDs are tracked in the database so you'll never get duplicate toots.
-
-## Album Listening Posts (Navidrome)
-
-Connect Mastoferr to your Navidrome server to automatically post a toot with the album cover when you finish listening to an album. "Finished" means ≥65% of the album's tracks were heard in a single session, **in track order** — skipping backwards resets the session.
-
-**Post format:**
-```
-Artist Name
-[Year] Album Title
-
-[cover image]
-
-#NowPlaying #Rock #Alternative
-```
-
-Genres are pulled from Navidrome and appended as hashtags (up to 5). Requires Navidrome configured in **Settings → Profile Fields → Music**.
-
-Enable in **Settings → Auto Toots → Album Listening Posts**.
-
-## Discord Confirmation
-
-Any auto-toot source (Audiobookshelf, album listening, loved tracks) can optionally require a confirmation before posting. When enabled, Mastoferr sends a message to a Discord webhook with a one-time confirmation link. Clicking the link posts the toot; ignoring it discards it (tokens expire after 10 minutes).
-
-Configure in **Settings → Auto Toots → Discord Confirmation**: enter your Discord webhook URL and enable the checkboxes for each source you want to gate.
-
-## Loved Track Posts (Navidrome)
-
-Automatically posts a toot with the album cover whenever you star/love a track in Navidrome.
-
-**Post format:**
-```
-Artist - Track Title
-
-[cover image]
-
-#NowPlaying #Genre
-```
-
-Enable in **Settings → Auto Toots → Navidrome — Loved Track**. Mastoferr polls your starred list on each music update cycle and detects new stars within ~60 seconds.
-
-## Follower Tracking
-
-Mastoferr tracks every follow and unfollow event on your account. The **Users** page shows:
-
-- A line chart of follows and unfollows over time
-- A table of everyone who has unfollowed you, with their avatar, handle, and the date it happened
-
-Follower data is synced automatically on every poll cycle.
-
-## Weekly Music Recap
-
-Post your top 5 most-listened artists of the past week every Monday at midnight. Uses whichever music source is configured (Last.fm, ListenBrainz, or Navidrome).
-
-Enable in **Settings → Auto Toots → Weekly Music Recap**. Customize the hashtags or leave blank for defaults (`#music #weeklyrecap`).
-
-## AI Roast
-
-The dashboard shows an AI-generated roast of your posting habits based on your archived activity. Supports Anthropic (Claude), OpenAI (GPT), Google (Gemini), and any OpenAI-compatible endpoint (Ollama, LM Studio, etc.).
-
-### Feedback learning
-
-Rate each roast with 👍 or 👎. Liked roasts are used as style examples for future AI generations. Disliked roasts are permanently blacklisted and also feed into the prompt as negative examples — the AI learns to avoid them.
-
-### Posting
-
-Clicking **Toot This** opens your Mastodon compose window pre-filled with the roast text and `Roasted by Mastoferr` at the bottom. You can edit or delete any part of it before posting.
-
-Configure in **Settings → AI Roast**.
-
-## What Gets Archived
-
-| Data | Details |
-|------|---------|
-| **Your toots** | Posts, replies, boosts |
-| **Notifications** | Likes, boosts, mentions, follows on your toots |
-| **Favorites** | Toots you've liked |
-| **Bookmarks** | Toots you've bookmarked |
-| **Media** | Images and GIFs from all of the above, stored locally |
+See the [Wiki](https://github.com/brunopatuleia/MastoFerr/wiki) for full documentation.
 
 ## Tech Stack
 
-- Python 3.12 + FastAPI
-- SQLite with FTS5 full-text search
-- Mastodon.py
-- APScheduler
-- Jinja2 templates
-- Docker
-
-## Security
-
-Security hardening (v1.1.0+) was reviewed and applied by [Claude Code](https://claude.ai/claude-code) (Anthropic), with additional fixes suggested by a Gemini 3 Pro Preview code review:
-
-- OAuth error messages are URL-encoded before being embedded in redirect URLs (XSS prevention)
-- Open redirect vulnerability fixed in login flow (`/login?next=` validates relative paths only)
-- OAuth registration endpoint (`/auth/login`) protected from unauthenticated access
-- The AI roast endpoint is rate-limited to one request per 30 seconds
-- The container runs as a non-root user (`appuser`, UID 1000) with a health check
-- Entrypoint script auto-fixes data volume ownership at startup to prevent permission errors on first deploy
-- Docker resource limits cap memory at 512 MB and CPU at 1 core
-- Search page numbers are capped to prevent runaway SQLite offset queries
-- `requests` is now an explicit dependency rather than a transitive one
-- Favorites/bookmarks sync cursor derived from fetched item IDs instead of unreliable pagination headers (Gemini)
-- GitHub version check result cached for 1 hour to avoid API rate limits (Gemini)
-- Explicit `rollback()` added to the database context manager (Gemini)
-- OAuth state parameter (CSRF token) generated on login, verified in callback, cleared on success
-- Auth session cookie upgraded from `SameSite=Lax` to `SameSite=Strict`
-- Session and OAuth state cookies use `Secure` flag when `APP_URL` is HTTPS
-- SSRF mitigation: user-supplied service URLs validated to block cloud metadata endpoints (169.254.169.254 etc.) while allowing private IPs for homelab use
-- Discord webhook URL validated against `discord.com/api/webhooks` allowlist to prevent SSRF
-- Prompt injection mitigation: user toot content wrapped in XML delimiter tags before being inserted into AI roast prompt
-- FTS5 search snippets HTML-escaped via sentinel markers before rendering, preventing stored XSS from archived toot content
-- Reflected XSS in `/confirm-toot` response fixed — toot label (from external sources) is HTML-escaped before rendering
-- Path traversal in media download fixed — `media_id` stripped to `[a-zA-Z0-9_-]` before use as filename
-- Media file extension allowlisted on download — only safe types (jpg/png/gif/webp/mp4/mp3/etc.) are written to disk
-- `/auth/logout` requires authentication to prevent CSRF-triggered session clearing
-- `/confirm-toot` rate-limited to 10 requests per 60 seconds per IP
+Python 3.12 · FastAPI · SQLite FTS5 · Mastodon.py · APScheduler · Jinja2 · Docker
 
 ## License
 
