@@ -1,4 +1,5 @@
 import hashlib
+import html
 import hmac
 import logging
 import math
@@ -1032,9 +1033,9 @@ async def confirm_toot(token: str, request: Request):
     except Exception as e:
         logger.error(f"confirm-toot: post failed ({entry['label']}): {e}")
         return HTMLResponse("<h2>Failed to post.</h2><p>An error occurred. Check the application logs.</p>", status_code=500)
-    label = entry["label"]
+    safe_label = html.escape(entry["label"])
     return HTMLResponse(
-        f"<h2>Posted!</h2><p><strong>{label}</strong> has been posted to Mastodon.</p>",
+        f"<h2>Posted!</h2><p><strong>{safe_label}</strong> has been posted to Mastodon.</p>",
         status_code=200,
     )
 
