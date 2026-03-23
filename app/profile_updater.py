@@ -13,6 +13,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -777,6 +778,75 @@ def _format_starred_toot(song: dict) -> str:
     return f"{artist} - {title}\n\n{hashtags}"
 
 
+# ── Pending toot confirmation store ──────────────────────────────────────────
+# Keyed by a UUID token. Each entry holds everything needed to post later.
+_pending_toots: dict[str, dict] = {}
+_pending_lock = threading.Lock()
+
+
+def _queue_pending_toot(
+    label: str,
+    text: str,
+    cover_bytes: bytes | None,
+    cover_mime: str,
+    cover_desc: str,
+    ttl_seconds: int = 86400,
+) -> str:
+    """Store a toot for later confirmation. Returns the opaque token."""
+    token = str(uuid.uuid4())
+    with _pending_lock:
+        _pending_toots[token] = {
+            "label": label,
+            "text": text,
+            "cover_bytes": cover_bytes,
+            "cover_mime": cover_mime,
+            "cover_desc": cover_desc,
+            "expires": time.time() + ttl_seconds,
+        }
+    return token
+
+
+def pop_pending_toot(token: str) -> dict | None:
+    """Remove and return a pending toot entry, or None if missing/expired."""
+    with _pending_lock:
+        entry = _pending_toots.pop(token, None)
+    if entry and time.time() > entry["expires"]:
+        return None
+    return entry
+
+
+def _expire_pending_toots() -> None:
+    """Remove all expired entries. Call periodically from the updater loop."""
+    now = time.time()
+    with _pending_lock:
+        expired = [t for t, e in _pending_toots.items() if now > e["expires"]]
+        for t in expired:
+            del _pending_toots[t]
+
+
+def _send_discord_confirmation(
+    webhook_url: str,
+    label: str,
+    toot_text: str,
+    confirm_url: str,
+) -> None:
+    """Send a Discord message asking for toot confirmation."""
+    content = (
+        f"**New toot ready to post** — {label}\n\n"
+        f"```\n{toot_text}\n```\n"
+        f"[Confirm and post]({confirm_url})"
+    )
+    try:
+        resp = requests.post(
+            webhook_url,
+            json={"content": content},
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except Exception as e:
+        logger.error(f"Discord confirmation webhook failed: {e}")
+
+
 def _genre_to_hashtag(genre: str) -> str:
     """Convert a genre string to a hashtag, stripping & and extra spaces."""
     cleaned = genre.replace("&", "").replace("  ", " ").strip()
@@ -1007,6 +1077,31 @@ class ProfileUpdater:
             ratelimit_method="wait",  # wait if rate limited rather than crash
         )
 
+    def _post_toot_with_cover(
+        self,
+        mastodon: Mastodon,
+        toot_text: str,
+        cover_bytes: bytes | None,
+        label: str,
+        mime: str = "image/jpeg",
+    ) -> None:
+        """Upload cover (if any) and post a status. Logs errors."""
+        media_ids = None
+        if cover_bytes:
+            try:
+                media = mastodon.media_post(
+                    BytesIO(cover_bytes),
+                    mime_type=mime,
+                    description=label,
+                )
+                media_ids = [media["id"]]
+            except MastodonError as e:
+                logger.error(f"Failed to upload cover ({label}): {e}")
+        try:
+            mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
+        except MastodonError as e:
+            logger.error(f"Failed to post toot ({label}): {e}")
+
     def _update_profile_fields(self, client: Mastodon, managed_fields: dict[str, str]) -> bool:
         """Update multiple profile fields in a single API call.
 
@@ -1195,23 +1290,27 @@ class ProfileUpdater:
                                         cover_bytes = navidrome_client.get_cover_art_bytes(
                                             album_info.get("cover_art_id", album_id)
                                         )
-                                        media_ids = None
-                                        if cover_bytes:
-                                            try:
-                                                media = mastodon.media_post(
-                                                    BytesIO(cover_bytes),
-                                                    mime_type="image/jpeg",
-                                                    description=f"{album_info['name']} by {album_info['artist']}",
+                                        label = f"{album_info['name']} by {album_info['artist']}"
+                                        if settings.get("pu_album_confirm") == "1":
+                                            webhook_url = settings.get("discord_webhook_url", "").strip()
+                                            if webhook_url:
+                                                from app.config import APP_URL
+                                                token = _queue_pending_toot(
+                                                    label, toot_text, cover_bytes,
+                                                    "image/jpeg", label,
                                                 )
-                                                media_ids = [media["id"]]
-                                            except MastodonError as e:
-                                                logger.error(f"Failed to upload album cover: {e}")
-                                        try:
-                                            mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
-                                            logger.info(f"Posted album toot: {album_info['name']} ({seen}/{total} tracks heard)")
-                                            self._album_session["posted"] = True
-                                        except MastodonError as e:
-                                            logger.error(f"Failed to post album toot: {e}")
+                                                _send_discord_confirmation(
+                                                    webhook_url, label, toot_text,
+                                                    f"{APP_URL}/confirm-toot/{token}",
+                                                )
+                                                logger.info(f"Album toot queued for confirmation: {label}")
+                                            else:
+                                                logger.warning("pu_album_confirm is set but discord_webhook_url is empty — posting directly")
+                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label)
+                                        else:
+                                            self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label)
+                                            logger.info(f"Posted album toot: {label} ({seen}/{total} tracks heard)")
+                                        self._album_session["posted"] = True
 
                         # Navidrome starred track → toot
                         if settings.get("pu_nd_star_toot_enabled") == "1" and navidrome_client:
@@ -1354,23 +1453,28 @@ class ProfileUpdater:
                                 tooted_ids.add(item_id)  # skip broken items
                                 continue
                             toot_text = _format_abs_toot(book, settings)
-                            media_ids = None
                             cover_bytes = audiobookshelf.get_cover_bytes(item_id)
-                            if cover_bytes:
-                                try:
-                                    media = mastodon.media_post(
-                                        BytesIO(cover_bytes),
-                                        mime_type="image/jpeg",
-                                        description=f"Cover of {book['title']}",
+                            label = book["title"]
+                            if settings.get("pu_abs_confirm") == "1":
+                                webhook_url = settings.get("discord_webhook_url", "").strip()
+                                if webhook_url:
+                                    from app.config import APP_URL
+                                    token = _queue_pending_toot(
+                                        label, toot_text, cover_bytes,
+                                        "image/jpeg", f"Cover of {label}",
                                     )
-                                    media_ids = [media["id"]]
-                                except MastodonError as e:
-                                    logger.error(f"Failed to upload ABS cover ({book['title']}): {e}")
-                            try:
-                                mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
-                                logger.info(f"Posted ABS started toot: {book['title']}")
-                            except MastodonError as e:
-                                logger.error(f"Failed to post ABS toot ({book['title']}): {e}")
+                                    _send_discord_confirmation(
+                                        webhook_url, label, toot_text,
+                                        f"{APP_URL}/confirm-toot/{token}",
+                                    )
+                                    logger.info(f"ABS started toot queued for confirmation: {label}")
+                                else:
+                                    logger.warning("pu_abs_confirm is set but discord_webhook_url is empty — posting directly")
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                    logger.info(f"Posted ABS started toot: {label}")
+                            else:
+                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                logger.info(f"Posted ABS started toot: {label}")
                             tooted_ids.add(item_id)
 
                         # Books that just left in-progress — check if finished
@@ -1386,23 +1490,28 @@ class ProfileUpdater:
                                 if not book:
                                     continue
                                 toot_text = _format_abs_finished_toot(book, settings)
-                                media_ids = None
                                 cover_bytes = audiobookshelf.get_cover_bytes(item_id)
-                                if cover_bytes:
-                                    try:
-                                        media = mastodon.media_post(
-                                            BytesIO(cover_bytes),
-                                            mime_type="image/jpeg",
-                                            description=f"Cover of {book['title']}",
+                                label = book["title"]
+                                if settings.get("pu_abs_finished_confirm") == "1":
+                                    webhook_url = settings.get("discord_webhook_url", "").strip()
+                                    if webhook_url:
+                                        from app.config import APP_URL
+                                        token = _queue_pending_toot(
+                                            label, toot_text, cover_bytes,
+                                            "image/jpeg", f"Cover of {label}",
                                         )
-                                        media_ids = [media["id"]]
-                                    except MastodonError as e:
-                                        logger.error(f"Failed to upload ABS cover ({book['title']}): {e}")
-                                try:
-                                    mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
-                                    logger.info(f"Posted ABS finished toot: {book['title']}")
-                                except MastodonError as e:
-                                    logger.error(f"Failed to post ABS finished toot ({book['title']}): {e}")
+                                        _send_discord_confirmation(
+                                            webhook_url, label, toot_text,
+                                            f"{APP_URL}/confirm-toot/{token}",
+                                        )
+                                        logger.info(f"ABS finished toot queued for confirmation: {label}")
+                                    else:
+                                        logger.warning("pu_abs_finished_confirm is set but discord_webhook_url is empty — posting directly")
+                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                        logger.info(f"Posted ABS finished toot: {label}")
+                                else:
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                    logger.info(f"Posted ABS finished toot: {label}")
 
                         # Persist updated sets (cap at 500 to avoid unbounded growth)
                         with get_db() as conn:
@@ -1432,6 +1541,7 @@ class ProfileUpdater:
                     logger.error(f"Profile updater loop error: {e}", exc_info=True)
                     self.error = str(e)
 
+                _expire_pending_toots()
                 self._stop_event.wait(loop_interval)
 
         except Exception as e:

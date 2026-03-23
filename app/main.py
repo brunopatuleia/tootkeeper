@@ -6,6 +6,7 @@ import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote as _url_quote
 
@@ -18,7 +19,7 @@ from mastodon import Mastodon
 
 from app.collector import run_full_sync
 from app.config import APP_PASSWORD, APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL, VERSION
-from app.profile_updater import ProfileUpdater
+from app.profile_updater import ProfileUpdater, pop_pending_toot
 from app.roast import generate_roast, _add_to_roast_history
 from app.database import (
     get_all_settings,
@@ -978,6 +979,50 @@ def backup_markdown(request: Request):
     )
 
 
+@app.get("/confirm-toot/{token}", response_class=HTMLResponse)
+async def confirm_toot(token: str):
+    """Confirm and post a pending toot (linked from Discord notification)."""
+    entry = pop_pending_toot(token)
+    if entry is None:
+        return HTMLResponse(
+            "<h2>Link expired or already used.</h2><p>This confirmation link is no longer valid.</p>",
+            status_code=404,
+        )
+    with get_db() as conn:
+        instance_url = get_setting(conn, "instance_url")
+        access_token = get_setting(conn, "access_token")
+    if not instance_url or not access_token:
+        return HTMLResponse(
+            "<h2>Mastodon not configured.</h2><p>Connect your account first.</p>",
+            status_code=500,
+        )
+    client = Mastodon(access_token=access_token, api_base_url=instance_url)
+    media_ids = None
+    if entry.get("cover_bytes"):
+        try:
+            media = client.media_post(
+                BytesIO(entry["cover_bytes"]),
+                mime_type=entry.get("cover_mime", "image/jpeg"),
+                description=entry.get("cover_desc", ""),
+            )
+            media_ids = [media["id"]]
+        except Exception as e:
+            logger.warning(f"confirm-toot: cover upload failed ({entry['label']}): {e}")
+    try:
+        client.status_post(entry["text"], media_ids=media_ids, visibility="public")
+    except Exception as e:
+        logger.error(f"confirm-toot: post failed ({entry['label']}): {e}")
+        return HTMLResponse(
+            f"<h2>Failed to post.</h2><pre>{e}</pre>",
+            status_code=500,
+        )
+    label = entry["label"]
+    return HTMLResponse(
+        f"<h2>Posted!</h2><p><strong>{label}</strong> has been posted to Mastodon.</p>",
+        status_code=200,
+    )
+
+
 @app.get("/health")
 async def health_check():
     """Lightweight liveness probe — no auth required."""
@@ -1046,13 +1091,15 @@ AUTO_TOOTS_SETTINGS_KEYS = [
     "pu_album_hashtags",
     "pu_abs_hashtags", "pu_abs_interval",
     "pu_abs_finished_hashtags",
+    "discord_webhook_url",
 ]
 
 AUTO_TOOTS_CHECKBOX_KEYS = [
     "pu_weekly_artists_enabled",
     "pu_books_post_start", "pu_books_post_finish",
-    "pu_album_enabled",
-    "pu_abs_enabled", "pu_abs_finished_enabled",
+    "pu_album_enabled", "pu_album_confirm",
+    "pu_abs_enabled", "pu_abs_confirm",
+    "pu_abs_finished_enabled", "pu_abs_finished_confirm",
     "pu_nd_star_toot_enabled",
 ]
 
