@@ -1,6 +1,6 @@
 import os
 
-VERSION = "1.1.0"
+VERSION = "1.4.0"
 GITHUB_REPO = "brunopatuleia/mastoferr"
 
 # These env vars are optional — OAuth flow via the web UI is the primary method.
