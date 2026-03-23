@@ -327,9 +327,22 @@
 
                 <div class="settings-section">
                     <h2>Discord Confirmation</h2>
-                    <p class="setup-hint" style="margin: 0.4rem 0 0.75rem 0;">Optional. When enabled on a source below, the app sends a Discord message with a confirm link instead of posting immediately.</p>
+                    <p class="setup-hint" style="margin: 0.4rem 0 0.75rem 0;">Optional. Sends a Discord message with a confirm link instead of posting immediately. Click the link to publish.</p>
                     <label for="discord_webhook_url">Webhook URL</label>
                     <input type="text" id="discord_webhook_url" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." value="{{ settings.get('discord_webhook_url', '') }}">
+                    <p class="setup-hint" style="margin: 0.75rem 0 0.4rem 0;">Require confirmation for:</p>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.3rem;">
+                        <input type="checkbox" name="pu_album_confirm" value="1" {{ 'checked' if settings.get('pu_album_confirm', '0') == '1' }}>
+                        Navidrome — Album Finished
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.3rem;">
+                        <input type="checkbox" name="pu_abs_confirm" value="1" {{ 'checked' if settings.get('pu_abs_confirm', '0') == '1' }}>
+                        Audiobookshelf — New Audiobook
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="pu_abs_finished_confirm" value="1" {{ 'checked' if settings.get('pu_abs_finished_confirm', '0') == '1' }}>
+                        Audiobookshelf — Finished Audiobook
+                    </label>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -342,10 +355,6 @@
                         <label for="pu_album_hashtags">Hashtags</label>
                         <input type="text" id="pu_album_hashtags" name="pu_album_hashtags" placeholder="#NowPlaying" value="{{ settings.get('pu_album_hashtags', '') }}">
                         <p class="setup-hint" style="margin-top: 0.25rem;">Genres from Navidrome are appended automatically. Leave blank for defaults.</p>
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.75rem;">
-                            <input type="checkbox" name="pu_album_confirm" value="1" {{ 'checked' if settings.get('pu_album_confirm', '0') == '1' }}>
-                            Require Discord confirmation before posting
-                        </label>
                     </div>
                 </div>
 
@@ -369,10 +378,6 @@
                         <p class="setup-hint" style="margin-top: 0.25rem;">Genres from Audiobookshelf are appended automatically. Leave blank for defaults.</p>
                         <label for="pu_abs_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
                         <input type="number" id="pu_abs_interval" name="pu_abs_interval" min="60" placeholder="900" value="{{ settings.get('pu_abs_interval', '900') }}">
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.75rem;">
-                            <input type="checkbox" name="pu_abs_confirm" value="1" {{ 'checked' if settings.get('pu_abs_confirm', '0') == '1' }}>
-                            Require Discord confirmation before posting
-                        </label>
                     </div>
                 </div>
 
@@ -386,10 +391,6 @@
                         <label for="pu_abs_finished_hashtags">Hashtags</label>
                         <input type="text" id="pu_abs_finished_hashtags" name="pu_abs_finished_hashtags" placeholder="#FinishedReading #Audiobooks #Books" value="{{ settings.get('pu_abs_finished_hashtags', '') }}">
                         <p class="setup-hint" style="margin-top: 0.25rem;">Genres from Audiobookshelf are appended automatically. Leave blank for defaults.</p>
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.75rem;">
-                            <input type="checkbox" name="pu_abs_finished_confirm" value="1" {{ 'checked' if settings.get('pu_abs_finished_confirm', '0') == '1' }}>
-                            Require Discord confirmation before posting
-                        </label>
                     </div>
                 </div>
 
