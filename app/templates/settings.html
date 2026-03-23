@@ -327,33 +327,33 @@
 
                 <div class="settings-section">
                     <h2>Discord Confirmation</h2>
-                    <label for="discord_webhook_url">Webhook URL <i class="info-tip" data-tip="Paste a Discord Incoming Webhook URL here.\nWhen confirmation is enabled for a source, the app posts a preview to this channel with a confirm link instead of posting immediately.">i</i></label>
+                    <label for="discord_webhook_url">Webhook URL <i class="info-tip">i<span class="tip-text">Paste a Discord Incoming Webhook URL here. When confirmation is enabled for a source, the app posts a preview to this channel with a confirm link instead of posting immediately.</span></i></label>
                     <input type="text" id="discord_webhook_url" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." value="{{ settings.get('discord_webhook_url', '') }}">
                     <p class="setup-hint" style="margin: 0.75rem 0 0.4rem 0;">Require confirmation for:</p>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.3rem;">
                         <input type="checkbox" name="pu_album_confirm" value="1" {{ 'checked' if settings.get('pu_album_confirm', '0') == '1' }}>
                         Navidrome — Album Finished
-                        <i class="info-tip" data-tip="When checked, album toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.">i</i>
+                        <i class="info-tip">i<span class="tip-text">Album toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.</span></i>
                     </label>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.3rem;">
                         <input type="checkbox" name="pu_abs_confirm" value="1" {{ 'checked' if settings.get('pu_abs_confirm', '0') == '1' }}>
                         Audiobookshelf — New Audiobook
-                        <i class="info-tip" data-tip="When checked, new audiobook toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.">i</i>
+                        <i class="info-tip">i<span class="tip-text">New audiobook toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.</span></i>
                     </label>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                         <input type="checkbox" name="pu_abs_finished_confirm" value="1" {{ 'checked' if settings.get('pu_abs_finished_confirm', '0') == '1' }}>
                         Audiobookshelf — Finished Audiobook
-                        <i class="info-tip" data-tip="When checked, finished audiobook toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.">i</i>
+                        <i class="info-tip">i<span class="tip-text">Finished audiobook toots are held and sent to Discord for approval. Click the confirm link in Discord to publish.</span></i>
                     </label>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_album_enabled" value="1" {{ 'checked' if settings.get('pu_album_enabled', '0') == '1' }} onchange="toggleSection('album-fields', this.checked)">
-                        <h2>Navidrome — Album Finished <i class="info-tip" data-tip="Posts a toot with cover art when you listen to ≥65% of an album in track order in a single session.">i</i></h2>
+                        <h2>Navidrome — Album Finished <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you listen to 65% or more of an album in track order in a single session.</span></i></h2>
                     </label>
                     <div id="album-fields" style="{{ '' if settings.get('pu_album_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_album_hashtags">Hashtags <i class="info-tip" data-tip="Space-separated hashtags added to every album toot. Genres from Navidrome are appended automatically after these. Leave blank to use #NowPlaying.">i</i></label>
+                        <label for="pu_album_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every album toot. Genres from Navidrome are appended automatically. Leave blank to use #NowPlaying.</span></i></label>
                         <input type="text" id="pu_album_hashtags" name="pu_album_hashtags" placeholder="#NowPlaying" value="{{ settings.get('pu_album_hashtags', '') }}">
                     </div>
                 </div>
@@ -361,23 +361,23 @@
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_nd_star_toot_enabled" value="1" {{ 'checked' if settings.get('pu_nd_star_toot_enabled', '0') == '1' }}>
-                        <h2>Navidrome — Loved Track <i class="info-tip" data-tip="Posts a toot with cover art when you star or love a track in Navidrome. Only new stars since enabling are posted.">i</i></h2>
+                        <h2>Navidrome — Loved Track <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you star or love a track in Navidrome. Only new stars since enabling are posted.</span></i></h2>
                     </label>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_abs_enabled" value="1" {{ 'checked' if settings.get('pu_abs_enabled', '0') == '1' }} onchange="toggleSection('abs-fields', this.checked)">
-                        <h2>Audiobookshelf — New Audiobook <i class="info-tip" data-tip="Posts a toot with cover art the first time a book appears in your In Progress list. Each book is posted only once.">i</i></h2>
+                        <h2>Audiobookshelf — New Audiobook <i class="info-tip">i<span class="tip-text">Posts a toot with cover art the first time a book appears in your In Progress list. Each book is posted only once.</span></i></h2>
                     </label>
                     <div id="abs-fields" style="{{ '' if settings.get('pu_abs_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_abs_hashtags">Hashtags <i class="info-tip" data-tip="Space-separated hashtags added to every toot. Genres from Audiobookshelf are appended automatically. Leave blank to use #NowReading #Audiobooks #Books.">i</i></label>
+                        <label for="pu_abs_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every toot. Genres from Audiobookshelf are appended automatically. Leave blank to use #NowReading #Audiobooks #Books.</span></i></label>
                         <input type="text" id="pu_abs_hashtags" name="pu_abs_hashtags" placeholder="#NowReading #Audiobooks #Books" value="{{ settings.get('pu_abs_hashtags', '') }}">
-                        <label for="pu_abs_interval" style="margin-top: 0.75rem;">Check interval (seconds) <i class="info-tip" data-tip="How often the app polls Audiobookshelf for new in-progress books. Minimum 60 seconds. Default is 900 (15 min).">i</i></label>
+                        <label for="pu_abs_interval" style="margin-top: 0.75rem;">Check interval (seconds) <i class="info-tip">i<span class="tip-text">How often the app polls Audiobookshelf for new in-progress books. Minimum 60 seconds. Default is 900 (15 min).</span></i></label>
                         <input type="number" id="pu_abs_interval" name="pu_abs_interval" min="60" placeholder="900" value="{{ settings.get('pu_abs_interval', '900') }}">
-                        <label for="abs_public_url" style="margin-top: 0.75rem;">Public URL <i class="info-tip" data-tip="The externally accessible URL of your Audiobookshelf instance (e.g. https://audiobookshelf.example.com). If set, a share link is appended to the toot. Leave blank if your instance is LAN/VPN only. Applies to both started and finished toots.">i</i></label>
+                        <label for="abs_public_url" style="margin-top: 0.75rem;">Public URL <i class="info-tip">i<span class="tip-text">The externally accessible URL of your Audiobookshelf instance. If set, a share link is appended to the toot. Leave blank if your instance is LAN or VPN only. Applies to both started and finished toots.</span></i></label>
                         <input type="text" id="abs_public_url" name="abs_public_url" placeholder="https://audiobookshelf.example.com" value="{{ settings.get('abs_public_url', '') }}">
-                        <label for="abs_share_expiry_hours" style="margin-top: 0.75rem;">Share link expiry (hours) <i class="info-tip" data-tip="How long the share link stays active. Set to 0 for a permanent link. Example: 168 = 1 week.">i</i></label>
+                        <label for="abs_share_expiry_hours" style="margin-top: 0.75rem;">Share link expiry (hours) <i class="info-tip">i<span class="tip-text">How long the share link stays active. Set to 0 for a permanent link. Example: 168 = 1 week.</span></i></label>
                         <input type="number" id="abs_share_expiry_hours" name="abs_share_expiry_hours" min="0" placeholder="0" value="{{ settings.get('abs_share_expiry_hours', '0') }}">
                     </div>
                 </div>
@@ -385,10 +385,10 @@
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_abs_finished_enabled" value="1" {{ 'checked' if settings.get('pu_abs_finished_enabled', '0') == '1' }} onchange="toggleSection('abs-finished-fields', this.checked)">
-                        <h2>Audiobookshelf — Finished Audiobook <i class="info-tip" data-tip="Posts a toot when a book leaves your In Progress list and is marked as finished. Posts once per book.">i</i></h2>
+                        <h2>Audiobookshelf — Finished Audiobook <i class="info-tip">i<span class="tip-text">Posts a toot when a book leaves your In Progress list and is marked as finished. Posts once per book.</span></i></h2>
                     </label>
                     <div id="abs-finished-fields" style="{{ '' if settings.get('pu_abs_finished_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_abs_finished_hashtags">Hashtags <i class="info-tip" data-tip="Space-separated hashtags for finished book toots. Genres are appended automatically. Leave blank to use #FinishedReading #Audiobooks #Books.">i</i></label>
+                        <label for="pu_abs_finished_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags for finished book toots. Genres are appended automatically. Leave blank to use #FinishedReading #Audiobooks #Books.</span></i></label>
                         <input type="text" id="pu_abs_finished_hashtags" name="pu_abs_finished_hashtags" placeholder="#FinishedReading #Audiobooks #Books" value="{{ settings.get('pu_abs_finished_hashtags', '') }}">
                     </div>
                 </div>
@@ -396,12 +396,12 @@
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_weekly_artists_enabled" value="1" {{ 'checked' if settings.get('pu_weekly_artists_enabled', '0') == '1' }} onchange="toggleSection('weekly-fields', this.checked)">
-                        <h2>Weekly Top Artists <i class="info-tip" data-tip="Posts your top 5 most-listened artists once a week. Uses Last.fm, ListenBrainz, or Navidrome play counts.">i</i></h2>
+                        <h2>Weekly Top Artists <i class="info-tip">i<span class="tip-text">Posts your top 5 most-listened artists once a week. Uses Last.fm, ListenBrainz, or Navidrome play counts.</span></i></h2>
                     </label>
                     <div id="weekly-fields" style="{{ '' if settings.get('pu_weekly_artists_enabled', '0') == '1' else 'display:none;' }}">
                         <div style="display: flex; gap: 1rem;">
                             <div style="flex: 1;">
-                                <label for="pu_weekly_artists_day">Day <i class="info-tip" data-tip="Day of the week to post the recap.">i</i></label>
+                                <label for="pu_weekly_artists_day">Day <i class="info-tip">i<span class="tip-text">Day of the week to post the recap.</span></i></label>
                                 <select id="pu_weekly_artists_day" name="pu_weekly_artists_day">
                                     {% set day_val = settings.get('pu_weekly_artists_day', '0') %}
                                     <option value="0" {{ 'selected' if day_val == '0' }}>Monday</option>
@@ -414,28 +414,28 @@
                                 </select>
                             </div>
                             <div style="flex: 1;">
-                                <label for="pu_weekly_artists_hour">Hour <i class="info-tip" data-tip="Hour of the day to post (0–23, server time). The post is sent once on the configured day/hour combination.">i</i></label>
+                                <label for="pu_weekly_artists_hour">Hour <i class="info-tip">i<span class="tip-text">Hour of the day to post (0-23, server time). The post is sent once on the configured day and hour.</span></i></label>
                                 <input type="number" id="pu_weekly_artists_hour" name="pu_weekly_artists_hour" min="0" max="23" placeholder="0" value="{{ settings.get('pu_weekly_artists_hour', '0') }}">
                             </div>
                         </div>
-                        <label for="pu_weekly_artists_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip" data-tip="Hashtags appended to the weekly artists toot. Leave blank for defaults.">i</i></label>
+                        <label for="pu_weekly_artists_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags appended to the weekly artists toot. Leave blank for defaults.</span></i></label>
                         <input type="text" id="pu_weekly_artists_hashtags" name="pu_weekly_artists_hashtags" placeholder="#music #weeklyrecap" value="{{ settings.get('pu_weekly_artists_hashtags', '') }}">
                     </div>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
-                    <h2>Goodreads — Book Events <i class="info-tip" data-tip="Reads your public Goodreads RSS feed and posts when your reading status changes.">i</i></h2>
+                    <h2>Goodreads — Book Events <i class="info-tip">i<span class="tip-text">Reads your public Goodreads RSS feed and posts when your reading status changes.</span></i></h2>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.4rem;">
                         <input type="checkbox" name="pu_books_post_start" value="1" {{ 'checked' if settings.get('pu_books_post_start', '0') == '1' }}>
                         Post when I start reading a book
-                        <i class="info-tip" data-tip="Posts a toot when a book appears as "currently reading" in your Goodreads feed.">i</i>
+                        <i class="info-tip">i<span class="tip-text">Posts a toot when a book appears as currently reading in your Goodreads feed.</span></i>
                     </label>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                         <input type="checkbox" name="pu_books_post_finish" value="1" {{ 'checked' if settings.get('pu_books_post_finish', '0') == '1' }}>
                         Post when I finish a book
-                        <i class="info-tip" data-tip="Posts a toot with rating when a book appears as "read" in your Goodreads feed.">i</i>
+                        <i class="info-tip">i<span class="tip-text">Posts a toot with rating when a book appears as read in your Goodreads feed.</span></i>
                     </label>
-                    <label for="pu_books_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip" data-tip="Hashtags appended to Goodreads book toots. Leave blank for defaults.">i</i></label>
+                    <label for="pu_books_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags appended to Goodreads book toots. Leave blank for defaults.</span></i></label>
                     <input type="text" id="pu_books_hashtags" name="pu_books_hashtags" placeholder="#books #amreading" value="{{ settings.get('pu_books_hashtags', '') }}">
                 </div>
 
