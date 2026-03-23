@@ -326,6 +326,18 @@
             <form action="/settings/auto-toots" method="post" class="setup-form">
 
                 <div class="settings-section">
+                    <h2>General</h2>
+                    <label for="pu_toot_visibility">Default visibility <i class="info-tip">i<span class="tip-text">Visibility applied to all auto-toots (audiobook, album, loved track, weekly recap, book activity). Does not affect toots you post manually.</span></i></label>
+                    <select id="pu_toot_visibility" name="pu_toot_visibility">
+                        {% set vis = settings.get('pu_toot_visibility', 'public') %}
+                        <option value="public" {% if vis == 'public' %}selected{% endif %}>Public</option>
+                        <option value="unlisted" {% if vis == 'unlisted' %}selected{% endif %}>Unlisted</option>
+                        <option value="private" {% if vis == 'private' %}selected{% endif %}>Followers only</option>
+                        <option value="direct" {% if vis == 'direct' %}selected{% endif %}>Mentioned people only</option>
+                    </select>
+                </div>
+
+                <div class="settings-section">
                     <h2>Discord Confirmation</h2>
                     <label for="discord_webhook_url">Webhook URL <i class="info-tip">i<span class="tip-text">Paste a Discord Incoming Webhook URL here. When confirmation is enabled for a source, the app posts a preview to this channel with a confirm link instead of posting immediately.</span></i></label>
                     <input type="text" id="discord_webhook_url" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." value="{{ settings.get('discord_webhook_url', '') }}">

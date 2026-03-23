@@ -1160,6 +1160,7 @@ class ProfileUpdater:
         cover_bytes: bytes | None,
         label: str,
         mime: str = "image/jpeg",
+        visibility: str = "public",
     ) -> None:
         """Upload cover (if any) and post a status. Logs errors."""
         media_ids = None
@@ -1174,7 +1175,7 @@ class ProfileUpdater:
             except MastodonError as e:
                 logger.error(f"Failed to upload cover ({label}): {e}")
         try:
-            mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
+            mastodon.status_post(toot_text, media_ids=media_ids, visibility=visibility)
         except MastodonError as e:
             logger.error(f"Failed to post toot ({label}): {e}")
 
@@ -1385,9 +1386,9 @@ class ProfileUpdater:
                                                 logger.info(f"Album toot queued for confirmation: {label}")
                                             else:
                                                 logger.warning("pu_album_confirm is set but discord_webhook_url is empty — posting directly")
-                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label)
+                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
                                         else:
-                                            self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label)
+                                            self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
                                             logger.info(f"Posted album toot: {label} ({seen}/{total} tracks heard)")
                                         self._album_session["posted"] = True
                                         self._save_album_session()
@@ -1427,7 +1428,7 @@ class ProfileUpdater:
                                                     except MastodonError as e:
                                                         logger.error(f"Failed to upload cover for starred toot: {e}")
                                             try:
-                                                mastodon.status_post(toot_text, media_ids=media_ids, visibility="public")
+                                                mastodon.status_post(toot_text, media_ids=media_ids, visibility=settings.get("pu_toot_visibility") or "public")
                                                 logger.info(f"Posted starred toot: {song.get('artist')} - {song.get('title')}")
                                             except MastodonError as e:
                                                 logger.error(f"Failed to post starred toot: {e}")
@@ -1475,7 +1476,7 @@ class ProfileUpdater:
                                     toot_text = _format_book_finished_toot(event, settings)
                                 if toot_text:
                                     try:
-                                        mastodon.status_post(toot_text, visibility="public")
+                                        mastodon.status_post(toot_text, visibility=settings.get("pu_toot_visibility") or "public")
                                         logger.info(f"Posted book {event['type']} toot: {event['book_title']}")
                                     except MastodonError as e:
                                         logger.error(f"Failed to post book toot: {e}")
@@ -1500,7 +1501,7 @@ class ProfileUpdater:
                                 if top_artists:
                                     toot_text = _format_weekly_artists_toot(top_artists, settings)
                                     try:
-                                        mastodon.status_post(toot_text, visibility="public")
+                                        mastodon.status_post(toot_text, visibility=settings.get("pu_toot_visibility") or "public")
                                         with get_db() as conn:
                                             set_setting(conn, "pu_last_weekly_artists_date", today_str)
                                         logger.info("Posted weekly top artists toot")
@@ -1557,10 +1558,10 @@ class ProfileUpdater:
                                     logger.info(f"ABS started toot queued for confirmation: {label}")
                                 else:
                                     logger.warning("pu_abs_confirm is set but discord_webhook_url is empty — posting directly")
-                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
                                     logger.info(f"Posted ABS started toot: {label}")
                             else:
-                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
                                 logger.info(f"Posted ABS started toot: {label}")
                             tooted_ids.add(item_id)
 
@@ -1601,10 +1602,10 @@ class ProfileUpdater:
                                         logger.info(f"ABS finished toot queued for confirmation: {label}")
                                     else:
                                         logger.warning("pu_abs_finished_confirm is set but discord_webhook_url is empty — posting directly")
-                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
                                         logger.info(f"Posted ABS finished toot: {label}")
                                 else:
-                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}")
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
                                     logger.info(f"Posted ABS finished toot: {label}")
 
                         # Persist updated sets (cap at 500 to avoid unbounded growth)
