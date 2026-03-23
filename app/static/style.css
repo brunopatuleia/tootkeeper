@@ -694,7 +694,7 @@ h2 {
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-card);
-    color: var(--text-primary);
+    color: var(--text);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 0.4rem 0.6rem;
