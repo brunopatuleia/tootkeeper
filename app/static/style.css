@@ -647,7 +647,7 @@ h2 {
     margin-bottom: 0.5rem;
 }
 
-.setup-form input {
+.setup-form input:not([type="checkbox"]) {
     flex: 1;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -657,9 +657,16 @@ h2 {
     font-size: 1rem;
 }
 
-.setup-form input:focus {
+.setup-form input:not([type="checkbox"]):focus {
     outline: none;
     border-color: var(--accent);
+}
+
+.setup-form input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    cursor: pointer;
 }
 
 .setup-hint {
