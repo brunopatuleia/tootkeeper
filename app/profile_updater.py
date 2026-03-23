@@ -846,6 +846,25 @@ def _expire_pending_toots() -> None:
             del _pending_toots[t]
 
 
+def _safe_webhook_url(url: str) -> bool:
+    """Validate a webhook URL — must be http/https and not resolve to loopback or metadata endpoints."""
+    from urllib.parse import urlparse
+    _BLOCKED = {"169.254.169.254", "169.254.170.2", "metadata.google.internal"}
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if hostname in _BLOCKED:
+            return False
+        ip = socket.gethostbyname(hostname)
+        if ip.startswith("127.") or ip in ("0.0.0.0", "::1"):
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def _send_discord_confirmation(
     webhook_url: str,
     label: str,
@@ -853,6 +872,9 @@ def _send_discord_confirmation(
     confirm_url: str,
 ) -> None:
     """Send a Discord message asking for toot confirmation."""
+    if not _safe_webhook_url(webhook_url):
+        logger.error("Discord webhook URL failed safety check — skipping")
+        return
     content = (
         f"**New toot ready to post** — {label}\n\n"
         f"```\n{toot_text}\n```\n"

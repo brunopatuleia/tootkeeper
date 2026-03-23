@@ -72,6 +72,13 @@ _version_cache: dict = {"latest": None, "ts": 0.0}
 # Auth — populated during lifespan startup
 _secret_key: str = ""
 _AUTH_COOKIE = "tk_auth"
+_SECURE_COOKIES = APP_URL.startswith("https")
+
+# Rate limiting for /confirm-toot — max 10 attempts per IP per minute
+_confirm_rate: dict[str, list[float]] = {}
+_confirm_rate_lock = threading.Lock()
+_CONFIRM_MAX = 10
+_CONFIRM_WINDOW = 60.0
 
 
 def _auth_token() -> str:
@@ -310,7 +317,7 @@ async def login_submit(request: Request):
     next_url = _safe_next(str(form.get("next", "/")))
     if APP_PASSWORD and hmac.compare_digest(password, APP_PASSWORD):
         response = RedirectResponse(url=next_url, status_code=302)
-        response.set_cookie(_AUTH_COOKIE, _auth_token(), httponly=True, samesite="strict")
+        response.set_cookie(_AUTH_COOKIE, _auth_token(), httponly=True, samesite="strict", secure=_SECURE_COOKIES)
         return response
     return templates.TemplateResponse("login.html", {
         "request": request, "next": next_url, "error": "Incorrect password",
@@ -395,7 +402,7 @@ async def auth_login(request: Request):
         auth_url = f"{auth_url}{separator}state={oauth_state}"
 
         response = RedirectResponse(url=auth_url, status_code=302)
-        response.set_cookie("oauth_state", oauth_state, httponly=True, samesite="lax", max_age=600)
+        response.set_cookie("oauth_state", oauth_state, httponly=True, samesite="lax", max_age=600, secure=_SECURE_COOKIES)
         return response
 
     except Exception as e:
@@ -468,8 +475,10 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
 
 
 @app.get("/auth/logout")
-async def auth_logout():
+async def auth_logout(request: Request):
     """Clear stored credentials and stop syncing."""
+    if (auth := _require_auth(request)):
+        return auth
     if scheduler.running:
         scheduler.shutdown(wait=False)
 
@@ -980,8 +989,18 @@ def backup_markdown(request: Request):
 
 
 @app.get("/confirm-toot/{token}", response_class=HTMLResponse)
-async def confirm_toot(token: str):
+async def confirm_toot(token: str, request: Request):
     """Confirm and post a pending toot (linked from Discord notification)."""
+    # Rate limit by IP
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    with _confirm_rate_lock:
+        attempts = [t for t in _confirm_rate.get(client_ip, []) if now - t < _CONFIRM_WINDOW]
+        if len(attempts) >= _CONFIRM_MAX:
+            return HTMLResponse("<h2>Too many requests.</h2><p>Please wait before trying again.</p>", status_code=429)
+        attempts.append(now)
+        _confirm_rate[client_ip] = attempts
+
     entry = pop_pending_toot(token)
     if entry is None:
         return HTMLResponse(
@@ -1012,10 +1031,7 @@ async def confirm_toot(token: str):
         client.status_post(entry["text"], media_ids=media_ids, visibility="public")
     except Exception as e:
         logger.error(f"confirm-toot: post failed ({entry['label']}): {e}")
-        return HTMLResponse(
-            f"<h2>Failed to post.</h2><pre>{e}</pre>",
-            status_code=500,
-        )
+        return HTMLResponse("<h2>Failed to post.</h2><p>An error occurred. Check the application logs.</p>", status_code=500)
     label = entry["label"]
     return HTMLResponse(
         f"<h2>Posted!</h2><p><strong>{label}</strong> has been posted to Mastodon.</p>",

@@ -1,3 +1,4 @@
+import html
 import re
 import sqlite3
 from collections import defaultdict
@@ -37,6 +38,10 @@ def _sanitize_fts_query(query: str) -> str:
 
 _MAX_PAGE = 500  # Prevent runaway OFFSET queries (page * per_page ≤ 10 000 rows)
 
+# Unique sentinels used as FTS5 highlight markers — replaced with safe <mark> tags after HTML-escaping
+_MARK_S = "\x02MARKS\x02"
+_MARK_E = "\x02MARKE\x02"
+
 
 def search(
     conn: sqlite3.Connection,
@@ -69,10 +74,10 @@ def search(
     search_params = [fts_query]
     if source_type:
         search_params.append(source_type)
-    search_params.extend([per_page, offset])
+    search_params.extend([_MARK_S, _MARK_E, per_page, offset])
 
     results_sql = f"""
-        SELECT source_type, source_id, snippet(search_index, 2, '<mark>', '</mark>', '...', 40) as snippet,
+        SELECT source_type, source_id, snippet(search_index, 2, ?, ?, '...', 40) as snippet,
                account, rank
         FROM search_index
         WHERE search_index MATCH ? {type_clause}
@@ -104,6 +109,10 @@ def search(
     results = []
     for row in rows:
         item = dict(row)
+        # HTML-escape the snippet then restore only the highlight markers as <mark> tags
+        safe = html.escape(item.get("snippet") or "")
+        safe = safe.replace(_MARK_S, "<mark>").replace(_MARK_E, "</mark>")
+        item["snippet"] = safe
         source = sources_map.get((row["source_type"], row["source_id"]))
         if source:
             item["source"] = source
