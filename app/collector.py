@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import socket
 import time
 from datetime import datetime, timezone
@@ -65,6 +66,17 @@ def _safe_media_url(url: str) -> bool:
         return False
 
 
+_SAFE_MEDIA_EXTS = {
+    ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".mp4", ".mov", ".mp3", ".wav", ".ogg", ".m4a",
+}
+
+
+def _sanitize_media_id(media_id: str) -> str:
+    """Strip all characters except alphanumeric, underscores, and hyphens."""
+    return re.sub(r"[^a-zA-Z0-9_-]", "", media_id)
+
+
 def _get_extension(url: str) -> str:
     """Extract file extension from URL."""
     path = urlparse(url).path
@@ -86,7 +98,7 @@ def download_media(status: dict):
     for media in media_list:
         if not isinstance(media, dict):
             continue
-        media_id = str(media.get("id", ""))
+        media_id = _sanitize_media_id(str(media.get("id", "")))
         if not media_id:
             continue
 
@@ -99,15 +111,17 @@ def download_media(status: dict):
 
         if url and _safe_media_url(url):
             ext = _get_extension(url)
-            local_path = Path(MEDIA_PATH) / f"{media_id}{ext}"
-            if not local_path.exists():
-                _download_file(url, local_path)
+            if ext in _SAFE_MEDIA_EXTS:
+                local_path = Path(MEDIA_PATH) / f"{media_id}{ext}"
+                if not local_path.exists():
+                    _download_file(url, local_path)
 
         if preview_url and _safe_media_url(preview_url):
             ext = _get_extension(preview_url)
-            preview_path = Path(MEDIA_PATH) / f"{media_id}_preview{ext}"
-            if not preview_path.exists():
-                _download_file(preview_url, preview_path)
+            if ext in _SAFE_MEDIA_EXTS:
+                preview_path = Path(MEDIA_PATH) / f"{media_id}_preview{ext}"
+                if not preview_path.exists():
+                    _download_file(preview_url, preview_path)
 
 
 def _download_file(url: str, dest: Path):
