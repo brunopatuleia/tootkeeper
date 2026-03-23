@@ -988,7 +988,7 @@ class ProfileUpdater:
         self.last_movie_update: float = 0
         self.last_book_update: float = 0
         self.last_abs_update: float = 0
-        self._album_session: dict | None = None
+        self._album_session: dict | None = self._load_album_session()
         self.error: str | None = None
 
     def start(self):
@@ -1104,6 +1104,35 @@ class ProfileUpdater:
             api_base_url=instance,
             ratelimit_method="wait",  # wait if rate limited rather than crash
         )
+
+    def _load_album_session(self) -> dict | None:
+        """Restore album session from DB, converting JSON-safe types back."""
+        try:
+            with get_db() as conn:
+                raw = get_setting(conn, "pu_album_session")
+            if not raw:
+                return None
+            data = json.loads(raw)
+            data["tracks_seen"] = {tuple(t) for t in data["tracks_seen"]}
+            data["last_track_key"] = tuple(data["last_track_key"])
+            return data
+        except Exception:
+            return None
+
+    def _save_album_session(self) -> None:
+        """Persist current album session to DB."""
+        try:
+            if self._album_session is None:
+                with get_db() as conn:
+                    set_setting(conn, "pu_album_session", "")
+                return
+            data = {**self._album_session}
+            data["tracks_seen"] = [list(t) for t in data["tracks_seen"]]
+            data["last_track_key"] = list(data["last_track_key"])
+            with get_db() as conn:
+                set_setting(conn, "pu_album_session", json.dumps(data))
+        except Exception as e:
+            logger.error(f"Failed to save album session: {e}")
 
     def _post_toot_with_cover(
         self,
@@ -1291,6 +1320,7 @@ class ProfileUpdater:
                                             "posted": False,
                                             "last_track_key": track_key,
                                         }
+                                        self._save_album_session()
                                         logger.info(f"Album session started: {album_info['name']} ({album_info['total_tracks']} tracks)")
                                 elif not self._album_session["posted"]:
                                     last_key = self._album_session["last_track_key"]
@@ -1307,9 +1337,11 @@ class ProfileUpdater:
                                                 "posted": False,
                                                 "last_track_key": track_key,
                                             }
+                                            self._save_album_session()
                                     else:
                                         self._album_session["tracks_seen"].add(track_key)
                                         self._album_session["last_track_key"] = track_key
+                                        self._save_album_session()
                                     total = self._album_session["total_tracks"]
                                     seen = len(self._album_session["tracks_seen"])
                                     if total > 0 and seen / total >= 0.65:
@@ -1339,6 +1371,7 @@ class ProfileUpdater:
                                             self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label)
                                             logger.info(f"Posted album toot: {label} ({seen}/{total} tracks heard)")
                                         self._album_session["posted"] = True
+                                        self._save_album_session()
 
                         # Navidrome starred track → toot
                         if settings.get("pu_nd_star_toot_enabled") == "1" and navidrome_client:
