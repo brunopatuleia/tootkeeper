@@ -687,6 +687,32 @@ h2 {
     border-color: var(--accent);
 }
 
+.template-vars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.var-chip {
+    background: var(--bg-hover, var(--bg-card));
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.78rem;
+    font-family: monospace;
+    cursor: pointer;
+    user-select: none;
+    color: var(--accent);
+    transition: background 0.15s, color 0.15s;
+}
+
+.var-chip:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
 .setup-hint {
     color: var(--text-muted);
     font-size: 0.85rem;

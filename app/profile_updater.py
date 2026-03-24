@@ -837,6 +837,8 @@ def _format_starred_toot(song: dict, settings: dict) -> str:
     if template:
         mbid = song.get("musicBrainzId", "")
         song_link = _get_odesli_url(mbid) if mbid else ""
+        lfm_key = settings.get("pu_lastfm_api_key", "").strip()
+        similar_artists = _get_similar_artists(artist, lfm_key) if lfm_key else ""
         vars = {
             "Artist": artist,
             "Title": title,
@@ -845,6 +847,7 @@ def _format_starred_toot(song: dict, settings: dict) -> str:
             "GenreTag": genre_tag,
             "GenreTags": genre_tag,
             "SongLink": song_link,
+            "SimilarArtists": similar_artists,
             "Hashtags": hashtags,
         }
         return _render_template(template, vars)
@@ -996,6 +999,32 @@ def _get_odesli_url(mbid: str) -> str:
             return resp.json().get("pageUrl", "")
     except Exception as e:
         logger.debug(f"Odesli lookup failed for {mbid}: {e}")
+    return ""
+
+
+def _get_similar_artists(artist: str, api_key: str, limit: int = 3) -> str:
+    """Return a comma-separated list of similar artists from Last.fm (top N)."""
+    if not artist or not api_key:
+        return ""
+    try:
+        resp = requests.get(
+            "https://ws.audioscrobbler.com/2.0/",
+            params={
+                "method": "artist.getSimilar",
+                "artist": artist,
+                "api_key": api_key,
+                "format": "json",
+                "limit": limit,
+            },
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            artists = data.get("similarartists", {}).get("artist", [])
+            names = [a["name"] for a in artists[:limit] if "name" in a]
+            return ", ".join(names)
+    except Exception as e:
+        logger.debug(f"Last.fm getSimilar failed for {artist!r}: {e}")
     return ""
 
 
