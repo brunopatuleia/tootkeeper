@@ -756,17 +756,43 @@ def _format_weekly_artists_toot(artists: list[dict], settings: dict) -> str:
 
 def _format_book_started_toot(event: dict, settings: dict) -> str:
     emoji = "📚 " if _s(settings, "pu_show_emoji") == "1" else ""
-    author_str = f" by {event['author']}" if event.get("author") else ""
+    author = event.get("author", "")
+    author_str = f" by {author}" if author else ""
     hashtags = settings.get("pu_books_hashtags", "").strip() or "#books #amreading"
+
+    template = settings.get("pu_books_start_template", "").strip()
+    if template:
+        vars = {
+            "Title": event.get("book_title", ""),
+            "Author": author,
+            "AuthorLine": f"by {author}" if author else "",
+            "Hashtags": hashtags,
+        }
+        return _render_template(template, vars)
+
     return f"{emoji}Just started reading: {event['book_title']}{author_str}\n\n{hashtags}"
 
 
 def _format_book_finished_toot(event: dict, settings: dict) -> str:
     emoji = "📚 " if _s(settings, "pu_show_emoji") == "1" else ""
-    author_str = f" by {event['author']}" if event.get("author") else ""
+    author = event.get("author", "")
+    author_str = f" by {author}" if author else ""
     stars = _format_stars(event.get("rating"))
     rating_str = f" — {stars}" if stars else ""
     hashtags = settings.get("pu_books_hashtags", "").strip() or "#books #bookworm"
+
+    template = settings.get("pu_books_finish_template", "").strip()
+    if template:
+        vars = {
+            "Title": event.get("book_title", ""),
+            "Author": author,
+            "AuthorLine": f"by {author}" if author else "",
+            "Rating": stars,
+            "RatingSuffix": f" — {stars}" if stars else "",
+            "Hashtags": hashtags,
+        }
+        return _render_template(template, vars)
+
     return f"{emoji}Just finished reading: {event['book_title']}{author_str}{rating_str}\n\n{hashtags}"
 
 
@@ -774,26 +800,55 @@ def _format_album_toot(album: dict, settings: dict) -> str:
     """Format a toot for a completed album listen session."""
     artist = album.get("artist", "Unknown Artist")
     name = album.get("name", "Unknown Album")
-    year = album.get("year", "")
+    year = str(album.get("year", "")) if album.get("year") else ""
     genres = album.get("genres", [])
 
     album_line = f"[{year}] {name}" if year else name
-
     genre_tags = " ".join(_genre_to_hashtag(g) for g in genres[:5])
-
     base_tags = settings.get("pu_album_hashtags", "").strip() or "#NowPlaying"
     hashtags = f"{base_tags} {genre_tags}".strip() if genre_tags else base_tags
+
+    template = settings.get("pu_album_template", "").strip()
+    if template:
+        vars = {
+            "Artist": artist,
+            "Album": name,
+            "Year": year,
+            "AlbumLine": album_line,
+            "Hashtags": hashtags,
+            **_build_genre_vars(genres),
+        }
+        return _render_template(template, vars)
 
     return "\n".join([artist, album_line, "", hashtags])
 
 
-def _format_starred_toot(song: dict) -> str:
+def _format_starred_toot(song: dict, settings: dict) -> str:
     """Format a toot for a newly starred Navidrome track."""
     artist = song.get("artist", "Unknown Artist")
     title = song.get("title", "Unknown Title")
+    album = song.get("album", "")
+    year = str(song.get("year", "")) if song.get("year") else ""
     genre = song.get("genre", "")
     genre_tag = _genre_to_hashtag(genre) if genre else ""
     hashtags = f"#NowPlaying {genre_tag}".strip() if genre_tag else "#NowPlaying"
+
+    template = settings.get("pu_star_template", "").strip()
+    if template:
+        mbid = song.get("musicBrainzId", "")
+        song_link = _get_odesli_url(mbid) if mbid else ""
+        vars = {
+            "Artist": artist,
+            "Title": title,
+            "Album": album,
+            "Year": year,
+            "GenreTag": genre_tag,
+            "GenreTags": genre_tag,
+            "SongLink": song_link,
+            "Hashtags": hashtags,
+        }
+        return _render_template(template, vars)
+
     return f"{artist} - {title}\n\n{hashtags}"
 
 
@@ -894,6 +949,76 @@ def _genre_to_hashtag(genre: str) -> str:
     return "#" + "".join(w.capitalize() for w in cleaned.split())
 
 
+def _build_genre_vars(genres: list, base_count: int = 5) -> dict:
+    """Build %GenreTags% and %GenreTags:N% variable dict entries."""
+    tags = [_genre_to_hashtag(g) for g in genres[:base_count]]
+    result = {"GenreTags": " ".join(tags)}
+    for n in range(1, base_count + 1):
+        result[f"GenreTags:{n}"] = " ".join(tags[:n])
+    return result
+
+
+def _render_template(template: str, vars: dict) -> str:
+    """Render a toot template substituting %Variable% placeholders.
+
+    Lines that were non-blank in the template but resolve to blank after
+    substitution are dropped (handles optional vars like %Subtitle%).
+    Multiple consecutive blank lines are collapsed to one.
+    """
+    result_lines = []
+    # Sort longest keys first so %GenreTags:3% is replaced before %GenreTags%
+    sorted_keys = sorted(vars.keys(), key=len, reverse=True)
+    for line in template.split("\n"):
+        substituted = line
+        for key in sorted_keys:
+            substituted = substituted.replace(f"%{key}%", vars[key] or "")
+        stripped = substituted.strip()
+        # Drop lines that had content (variables) but resolved to nothing
+        if stripped == "" and line.strip() != "":
+            continue
+        result_lines.append(stripped)
+    text = "\n".join(result_lines)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _get_odesli_url(mbid: str) -> str:
+    """Look up a Songlink/Odesli URL for a MusicBrainz recording ID."""
+    if not mbid:
+        return ""
+    try:
+        resp = requests.get(
+            "https://api.song.link/v1-alpha.1/links",
+            params={"url": f"https://musicbrainz.org/recording/{mbid}", "userCountry": "US"},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            return resp.json().get("pageUrl", "")
+    except Exception as e:
+        logger.debug(f"Odesli lookup failed for {mbid}: {e}")
+    return ""
+
+
+def _abs_vars(book: dict, settings: dict, share_url: str, hashtags: str, genres: list) -> dict:
+    """Build template variable dict for ABS toots."""
+    author = book.get("author", "")
+    narrator = book.get("narrator", "")
+    year = str(book.get("year", "")) if book.get("year") else ""
+    return {
+        "Title": book.get("title", "Unknown"),
+        "Subtitle": book.get("subtitle", ""),
+        "Author": author,
+        "AuthorLine": f"by {author}" if author else "",
+        "Narrator": narrator,
+        "NarratorLine": f"narrated by {narrator}" if narrator else "",
+        "Year": year,
+        "YearBracketed": f"[{year}]" if year else "",
+        "ShareLink": share_url,
+        "Hashtags": hashtags,
+        **_build_genre_vars(genres),
+    }
+
+
 def _format_abs_toot(book: dict, settings: dict, share_url: str = "") -> str:
     """Format a toot for a newly started Audiobookshelf book."""
     title = book.get("title", "Unknown")
@@ -904,9 +1029,12 @@ def _format_abs_toot(book: dict, settings: dict, share_url: str = "") -> str:
     genres = book.get("genres", [])
 
     genre_tags = " ".join(_genre_to_hashtag(g) for g in genres[:5])
-
     base_tags = settings.get("pu_abs_hashtags", "").strip() or "#NowReading #Audiobooks #Books"
     hashtags = f"{base_tags} {genre_tags}".strip() if genre_tags else base_tags
+
+    template = settings.get("pu_abs_template", "").strip()
+    if template:
+        return _render_template(template, _abs_vars(book, settings, share_url, hashtags, genres))
 
     parts = [title]
     if subtitle:
@@ -937,9 +1065,14 @@ def _format_abs_finished_toot(book: dict, settings: dict, share_url: str = "") -
     genres = book.get("genres", [])
 
     genre_tags = " ".join(_genre_to_hashtag(g) for g in genres[:5])
-
     base_tags = settings.get("pu_abs_finished_hashtags", "").strip() or "#FinishedReading #Audiobooks #Books"
     hashtags = f"{base_tags} {genre_tags}".strip() if genre_tags else base_tags
+
+    template = settings.get("pu_abs_finished_template", "").strip()
+    if template:
+        vars = _abs_vars(book, settings, share_url, hashtags, genres)
+        vars["Title"] = f"Just finished: {title}"
+        return _render_template(template, vars)
 
     parts = [f"Just finished: {title}"]
     if subtitle:
@@ -1412,7 +1545,7 @@ class ProfileUpdater:
                                         for song in starred:
                                             if str(song["id"]) not in new_ids:
                                                 continue
-                                            toot_text = _format_starred_toot(song)
+                                            toot_text = _format_starred_toot(song, settings)
                                             label = f"{song.get('artist')} - {song.get('title')}"
                                             cover_id = song.get("coverArt") or song.get("albumId")
                                             cover_bytes = None

@@ -1123,6 +1123,12 @@ AUTO_TOOTS_SETTINGS_KEYS = [
     "abs_public_url", "abs_share_expiry_hours",
     "discord_webhook_url",
     "pu_toot_visibility",
+    "pu_album_template",
+    "pu_star_template",
+    "pu_abs_template",
+    "pu_abs_finished_template",
+    "pu_books_start_template",
+    "pu_books_finish_template",
 ]
 
 AUTO_TOOTS_CHECKBOX_KEYS = [

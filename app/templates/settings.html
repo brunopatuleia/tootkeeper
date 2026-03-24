@@ -372,14 +372,24 @@
                     <div id="album-fields" style="{{ '' if settings.get('pu_album_enabled', '0') == '1' else 'display:none;' }}">
                         <label for="pu_album_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every album toot. Genres from Navidrome are appended automatically. Leave blank to use #NowPlaying.</span></i></label>
                         <input type="text" id="pu_album_hashtags" name="pu_album_hashtags" placeholder="#NowPlaying" value="{{ settings.get('pu_album_hashtags', '') }}">
+                        <label for="pu_album_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for album toots. Leave blank to use the default format. Use %Variable% placeholders.</span></i></label>
+                        <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                        <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Artist% %Album% %Year% %AlbumLine% %GenreTags% %GenreTags:3% %Hashtags%</code></details>
+                        <textarea id="pu_album_template" name="pu_album_template" rows="4" placeholder="%Artist%&#10;%AlbumLine%&#10;&#10;%Hashtags%">{{ settings.get('pu_album_template', '') }}</textarea>
                     </div>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
-                        <input type="checkbox" name="pu_nd_star_toot_enabled" value="1" {{ 'checked' if settings.get('pu_nd_star_toot_enabled', '0') == '1' }}>
+                        <input type="checkbox" name="pu_nd_star_toot_enabled" value="1" {{ 'checked' if settings.get('pu_nd_star_toot_enabled', '0') == '1' }} onchange="toggleSection('star-fields', this.checked)">
                         <h2>Navidrome — Loved Track <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you star or love a track in Navidrome. Only new stars since enabling are posted.</span></i></h2>
                     </label>
+                    <div id="star-fields" style="{{ '' if settings.get('pu_nd_star_toot_enabled', '0') == '1' else 'display:none;' }}">
+                        <label for="pu_star_template">Post template <i class="info-tip">i<span class="tip-text">Custom template for loved track toots. Leave blank for default. If %SongLink% is used, the app fetches a Songlink URL via odesli (requires MusicBrainz ID in Navidrome).</span></i></label>
+                        <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                        <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Artist% %Title% %Album% %Year% %GenreTag% %SongLink% %Hashtags%</code></details>
+                        <textarea id="pu_star_template" name="pu_star_template" rows="4" placeholder="%Artist% - %Title%&#10;&#10;%Hashtags%">{{ settings.get('pu_star_template', '') }}</textarea>
+                    </div>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
@@ -396,6 +406,10 @@
                         <input type="text" id="abs_public_url" name="abs_public_url" placeholder="https://audiobookshelf.example.com" value="{{ settings.get('abs_public_url', '') }}">
                         <label for="abs_share_expiry_hours" style="margin-top: 0.75rem;">Share link expiry (hours) <i class="info-tip">i<span class="tip-text">How long the share link stays active. Set to 0 for a permanent link. Example: 168 = 1 week.</span></i></label>
                         <input type="number" id="abs_share_expiry_hours" name="abs_share_expiry_hours" min="0" placeholder="0" value="{{ settings.get('abs_share_expiry_hours', '0') }}">
+                        <label for="pu_abs_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for new audiobook toots. Leave blank for default. Optional variables are removed automatically if the data is missing.</span></i></label>
+                        <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                        <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Title% %Subtitle% %Author% %AuthorLine% %Narrator% %NarratorLine% %Year% %YearBracketed% %ShareLink% %GenreTags% %GenreTags:3% %Hashtags%</code></details>
+                        <textarea id="pu_abs_template" name="pu_abs_template" rows="5" placeholder="%Title%&#10;%Subtitle%&#10;%AuthorLine%&#10;%NarratorLine%&#10;%YearBracketed%&#10;&#10;%Hashtags%">{{ settings.get('pu_abs_template', '') }}</textarea>
                     </div>
                 </div>
 
@@ -407,6 +421,10 @@
                     <div id="abs-finished-fields" style="{{ '' if settings.get('pu_abs_finished_enabled', '0') == '1' else 'display:none;' }}">
                         <label for="pu_abs_finished_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags for finished book toots. Genres are appended automatically. Leave blank to use #FinishedReading #Audiobooks #Books.</span></i></label>
                         <input type="text" id="pu_abs_finished_hashtags" name="pu_abs_finished_hashtags" placeholder="#FinishedReading #Audiobooks #Books" value="{{ settings.get('pu_abs_finished_hashtags', '') }}">
+                        <label for="pu_abs_finished_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for finished audiobook toots. Note: %Title% is pre-filled as "Just finished: Title". Leave blank for default.</span></i></label>
+                        <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                        <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Title% %Subtitle% %Author% %AuthorLine% %Narrator% %NarratorLine% %Year% %YearBracketed% %ShareLink% %GenreTags% %GenreTags:3% %Hashtags%</code></details>
+                        <textarea id="pu_abs_finished_template" name="pu_abs_finished_template" rows="5" placeholder="%Title%&#10;%Subtitle%&#10;%AuthorLine%&#10;%NarratorLine%&#10;%YearBracketed%&#10;&#10;%Hashtags%">{{ settings.get('pu_abs_finished_template', '') }}</textarea>
                     </div>
                 </div>
 
@@ -454,6 +472,14 @@
                     </label>
                     <label for="pu_books_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags appended to Goodreads book toots. Leave blank for defaults.</span></i></label>
                     <input type="text" id="pu_books_hashtags" name="pu_books_hashtags" placeholder="#books #amreading" value="{{ settings.get('pu_books_hashtags', '') }}">
+                    <label for="pu_books_start_template" style="margin-top: 0.75rem;">Started reading template <i class="info-tip">i<span class="tip-text">Custom template for "just started" book toots. Leave blank for default.</span></i></label>
+                    <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                    <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Title% %Author% %AuthorLine% %Hashtags%</code></details>
+                    <textarea id="pu_books_start_template" name="pu_books_start_template" rows="3" placeholder="Just started reading: %Title% by %Author%&#10;&#10;%Hashtags%">{{ settings.get('pu_books_start_template', '') }}</textarea>
+                    <label for="pu_books_finish_template" style="margin-top: 0.75rem;">Finished reading template <i class="info-tip">i<span class="tip-text">Custom template for "just finished" book toots. %Rating% is the star rating (e.g. ★★★★★), %RatingSuffix% includes the dash (e.g. " — ★★★★★"). Leave blank for default.</span></i></label>
+                    <details style="margin-bottom: 0.4rem;"><summary style="cursor:pointer; font-size: 0.85rem; color: var(--text-muted);">Available variables</summary>
+                    <code style="display:block; font-size:0.8rem; margin-top:0.3rem; color:var(--text-muted);">%Title% %Author% %AuthorLine% %Rating% %RatingSuffix% %Hashtags%</code></details>
+                    <textarea id="pu_books_finish_template" name="pu_books_finish_template" rows="3" placeholder="Just finished reading: %Title% by %Author%%RatingSuffix%&#10;&#10;%Hashtags%">{{ settings.get('pu_books_finish_template', '') }}</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-sync" style="margin-top: 1.5rem;">Save Auto Toots</button>
