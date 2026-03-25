@@ -103,6 +103,12 @@
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
+                    <h2>libre.fm</h2>
+                    <label for="pu_librefm_username">Username <i class="info-tip">i<span class="tip-text">No API key needed — libre.fm is open and key-free for public reads.</span></i></label>
+                    <input type="text" id="pu_librefm_username" name="pu_librefm_username" placeholder="Your libre.fm username" value="{{ settings.get('pu_librefm_username', '') }}">
+                </div>
+
+                <div class="settings-section" style="margin-top: 1.5rem;">
                     <h2>ListenBrainz</h2>
                     <label for="pu_listenbrainz_username">Username</label>
                     <input type="text" id="pu_listenbrainz_username" name="pu_listenbrainz_username" placeholder="Your ListenBrainz username" value="{{ settings.get('pu_listenbrainz_username', '') }}">

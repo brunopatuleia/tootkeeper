@@ -114,6 +114,64 @@ class LastFmClient:
             return []
 
 
+class LibreFmClient:
+    """libre.fm — open-source Last.fm-compatible scrobbling service.
+    Uses the same API format as Last.fm but no API key is required for
+    public read operations."""
+    API_URL = "https://libre.fm/2.0/"
+
+    def __init__(self, username: str):
+        self.username = username
+
+    def get_recent_track(self) -> Optional[dict]:
+        params = {
+            "method": "user.getrecenttracks",
+            "user": self.username,
+            "format": "json",
+            "limit": 1,
+        }
+        try:
+            resp = requests.get(self.API_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            tracks = data.get("recenttracks", {}).get("track")
+            if not tracks:
+                return None
+            track = tracks[0] if isinstance(tracks, list) else tracks
+            return {
+                "artist": track.get("artist", {}).get("#text", "Unknown Artist"),
+                "title": track.get("name", "Unknown Title"),
+                "now_playing": track.get("@attr", {}).get("nowplaying", "false") == "true",
+                "source": "librefm",
+            }
+        except Exception as e:
+            logger.error(f"libre.fm API failed: {e}")
+            return None
+
+    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
+        params = {
+            "method": "user.getTopArtists",
+            "user": self.username,
+            "format": "json",
+            "period": "7day",
+            "limit": limit,
+        }
+        try:
+            resp = requests.get(self.API_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            artists = data.get("topartists", {}).get("artist", [])
+            if not isinstance(artists, list):
+                artists = [artists]
+            return [
+                {"name": a.get("name", "Unknown"), "playcount": int(a.get("playcount", 0))}
+                for a in artists[:limit]
+            ]
+        except Exception as e:
+            logger.error(f"libre.fm top artists failed: {e}")
+            return []
+
+
 class ListenBrainzClient:
     API_URL = "https://api.listenbrainz.org/1"
 
@@ -1217,6 +1275,11 @@ class ProfileUpdater:
             lfm_key = settings.get("pu_lastfm_api_key", "").strip()
             if lfm_user and lfm_key:
                 music_clients.append(LastFmClient(lfm_key, lfm_user))
+
+            # libre.fm
+            lfree_user = settings.get("pu_librefm_username", "").strip()
+            if lfree_user:
+                music_clients.append(LibreFmClient(lfree_user))
 
             # ListenBrainz
             lb_user = settings.get("pu_listenbrainz_username", "").strip()

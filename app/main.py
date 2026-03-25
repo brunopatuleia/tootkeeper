@@ -1084,6 +1084,7 @@ async def api_sync(request: Request):
 
 SERVICES_SETTINGS_KEYS = [
     "pu_lastfm_username", "pu_lastfm_api_key",
+    "pu_librefm_username",
     "pu_listenbrainz_username", "pu_listenbrainz_token",
     "pu_navidrome_url", "pu_navidrome_username", "pu_navidrome_password",
     "pu_spotify_client_id", "pu_spotify_client_secret", "pu_spotify_refresh_token",
