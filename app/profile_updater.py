@@ -1173,8 +1173,14 @@ class ProfileUpdater:
         self.error: str | None = None
 
     def start(self):
-        if self.running:
-            return
+        # If a previous thread is still alive (e.g. stop() was just called),
+        # wait briefly for it to exit before spawning a new one.  Without this,
+        # stop()+start() on settings-save can leave two threads running at the
+        # same time, both able to fire the same toot.
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=5)
+        if self._thread is not None and self._thread.is_alive():
+            logger.warning("Profile updater: old thread still alive after 5 s, proceeding anyway")
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
