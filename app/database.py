@@ -725,11 +725,16 @@ def get_follower_chart_data(conn: sqlite3.Connection, days: int = 30) -> dict:
 
 
 def get_unfollowers(conn: sqlite3.Connection) -> list[dict]:
-    """Return all accounts that unfollowed, showing their latest unfollow date."""
+    """Return all accounts that unfollowed, with first followed and latest unfollow dates."""
     rows = conn.execute(
-        """SELECT account_id, acct, display_name, avatar, MAX(occurred_at) as unfollowed_at
+        """SELECT
+               account_id, acct, display_name, avatar,
+               MAX(CASE WHEN event_type = 'unfollowed' THEN occurred_at END) as unfollowed_at,
+               MIN(CASE WHEN event_type = 'followed'   THEN occurred_at END) as followed_at
            FROM follower_events
-           WHERE event_type = 'unfollowed'
+           WHERE account_id IN (
+               SELECT DISTINCT account_id FROM follower_events WHERE event_type = 'unfollowed'
+           )
            GROUP BY account_id
            ORDER BY unfollowed_at DESC"""
     ).fetchall()

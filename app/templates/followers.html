@@ -59,6 +59,8 @@ new Chart(document.getElementById('followersChart'), {
 </script>
 {% endif %}
 
+{% macro profile_url(acct) %}{% set parts = acct.split('@') %}{% if parts|length == 2 %}https://{{ parts[1] }}/@{{ parts[0] }}{% endif %}{% endmacro %}
+
 {% if unfollowers %}
 <div class="card" style="margin-bottom:1.5rem;">
     <h2 style="margin:0 0 1rem 0;">Unfollowers ({{ unfollowers|length }})</h2>
@@ -67,19 +69,24 @@ new Chart(document.getElementById('followersChart'), {
             <tr style="text-align:left;border-bottom:1px solid var(--border);">
                 <th style="padding:0.5rem 0.75rem;">User</th>
                 <th style="padding:0.5rem 0.75rem;">@handle</th>
+                <th style="padding:0.5rem 0.75rem;">Followed at</th>
                 <th style="padding:0.5rem 0.75rem;">Unfollowed at</th>
             </tr>
         </thead>
         <tbody>
             {% for u in unfollowers %}
+            {% set purl = profile_url(u.acct) %}
             <tr style="border-bottom:1px solid var(--border);">
                 <td style="padding:0.5rem 0.75rem;">
                     <div style="display:flex;align-items:center;gap:0.5rem;">
                         {% if u.avatar %}<img src="{{ u.avatar }}" alt="" class="avatar" style="width:28px;height:28px;">{% endif %}
-                        <span>{{ u.display_name or u.acct }}</span>
+                        {% if purl %}<a href="{{ purl }}" target="_blank" rel="noopener" style="color:inherit;">{{ u.display_name or u.acct }}</a>{% else %}<span>{{ u.display_name or u.acct }}</span>{% endif %}
                     </div>
                 </td>
-                <td style="padding:0.5rem 0.75rem;color:var(--muted);">@{{ u.acct }}</td>
+                <td style="padding:0.5rem 0.75rem;color:var(--muted);">
+                    {% if purl %}<a href="{{ purl }}" target="_blank" rel="noopener" style="color:var(--muted);">@{{ u.acct }}</a>{% else %}@{{ u.acct }}{% endif %}
+                </td>
+                <td style="padding:0.5rem 0.75rem;color:var(--muted);">{{ u.followed_at[:16] if u.followed_at else '—' }}</td>
                 <td style="padding:0.5rem 0.75rem;color:var(--muted);">{{ u.unfollowed_at[:16] }}</td>
             </tr>
             {% endfor %}
@@ -90,6 +97,7 @@ new Chart(document.getElementById('followersChart'), {
 
 {% if events %}
     {% for event in events %}
+    {% set purl = profile_url(event.acct) %}
     <div class="card">
         <div class="card-meta">
             <span class="date">{{ event.occurred_at[:16] }}</span>
@@ -102,8 +110,8 @@ new Chart(document.getElementById('followersChart'), {
                 {% if event.avatar %}
                 <img src="{{ event.avatar }}" alt="" class="avatar">
                 {% endif %}
-                <strong>{{ event.display_name or event.acct }}</strong>
-                <span class="acct">@{{ event.acct }}</span>
+                {% if purl %}<a href="{{ purl }}" target="_blank" rel="noopener" style="color:inherit;"><strong>{{ event.display_name or event.acct }}</strong></a>{% else %}<strong>{{ event.display_name or event.acct }}</strong>{% endif %}
+                {% if purl %}<a href="{{ purl }}" target="_blank" rel="noopener" class="acct">@{{ event.acct }}</a>{% else %}<span class="acct">@{{ event.acct }}</span>{% endif %}
             </div>
         </div>
     </div>
