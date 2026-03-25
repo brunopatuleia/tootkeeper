@@ -23,6 +23,7 @@ import feedparser
 import requests
 from mastodon import Mastodon, MastodonError
 
+from app.config import APP_URL
 from app.database import get_all_settings, get_db, get_setting, set_setting
 
 logger = logging.getLogger(__name__)
@@ -56,120 +57,72 @@ def _safe_url(url: str) -> bool:
 # ── Media source clients ─────────────────────────────────────────
 
 
-class LastFmClient:
+class _LastFmCompatClient:
+    """Shared implementation for Last.fm-compatible scrobbling APIs."""
+    API_URL: str = ""
+    SOURCE: str = ""
+
+    def __init__(self, username: str, api_key: str = ""):
+        self.username = username
+        self.api_key = api_key
+
+    def _base_params(self) -> dict:
+        p = {"user": self.username, "format": "json"}
+        if self.api_key:
+            p["api_key"] = self.api_key
+        return p
+
+    def get_recent_track(self) -> Optional[dict]:
+        params = {**self._base_params(), "method": "user.getrecenttracks", "limit": 1}
+        try:
+            resp = requests.get(self.API_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            tracks = resp.json().get("recenttracks", {}).get("track")
+            if not tracks:
+                return None
+            track = tracks[0] if isinstance(tracks, list) else tracks
+            return {
+                "artist": track.get("artist", {}).get("#text", "Unknown Artist"),
+                "title": track.get("name", "Unknown Title"),
+                "now_playing": track.get("@attr", {}).get("nowplaying", "false") == "true",
+                "source": self.SOURCE,
+            }
+        except Exception as e:
+            logger.error(f"{self.SOURCE} API failed: {e}")
+            return None
+
+    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
+        params = {**self._base_params(), "method": "user.getTopArtists", "period": "7day", "limit": limit}
+        try:
+            resp = requests.get(self.API_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            artists = resp.json().get("topartists", {}).get("artist", [])
+            if not isinstance(artists, list):
+                artists = [artists]
+            return [
+                {"name": a.get("name", "Unknown"), "playcount": int(a.get("playcount", 0))}
+                for a in artists[:limit]
+            ]
+        except Exception as e:
+            logger.error(f"{self.SOURCE} top artists failed: {e}")
+            return []
+
+
+class LastFmClient(_LastFmCompatClient):
     API_URL = "https://ws.audioscrobbler.com/2.0/"
+    SOURCE = "lastfm"
 
     def __init__(self, api_key: str, username: str):
-        self.api_key = api_key
-        self.username = username
-
-    def get_recent_track(self) -> Optional[dict]:
-        params = {
-            "method": "user.getrecenttracks",
-            "user": self.username,
-            "api_key": self.api_key,
-            "format": "json",
-            "limit": 1,
-        }
-        try:
-            resp = requests.get(self.API_URL, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            tracks = data.get("recenttracks", {}).get("track")
-            if not tracks:
-                return None
-            track = tracks[0] if isinstance(tracks, list) else tracks
-            return {
-                "artist": track.get("artist", {}).get("#text", "Unknown Artist"),
-                "title": track.get("name", "Unknown Title"),
-                "now_playing": track.get("@attr", {}).get("nowplaying", "false") == "true",
-                "source": "lastfm",
-            }
-        except Exception as e:
-            logger.error(f"Last.fm API failed: {e}")
-            return None
-
-    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
-        params = {
-            "method": "user.getTopArtists",
-            "user": self.username,
-            "api_key": self.api_key,
-            "format": "json",
-            "period": "7day",
-            "limit": limit,
-        }
-        try:
-            resp = requests.get(self.API_URL, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            artists = data.get("topartists", {}).get("artist", [])
-            if not isinstance(artists, list):
-                artists = [artists]
-            return [
-                {"name": a.get("name", "Unknown"), "playcount": int(a.get("playcount", 0))}
-                for a in artists[:limit]
-            ]
-        except Exception as e:
-            logger.error(f"Last.fm top artists failed: {e}")
-            return []
+        super().__init__(username=username, api_key=api_key)
 
 
-class LibreFmClient:
-    """libre.fm — open-source Last.fm-compatible scrobbling service.
-    Uses the same API format as Last.fm but no API key is required for
-    public read operations."""
+class LibreFmClient(_LastFmCompatClient):
+    """libre.fm — open-source Last.fm-compatible service. No API key needed."""
     API_URL = "https://libre.fm/2.0/"
+    SOURCE = "librefm"
 
     def __init__(self, username: str):
-        self.username = username
-
-    def get_recent_track(self) -> Optional[dict]:
-        params = {
-            "method": "user.getrecenttracks",
-            "user": self.username,
-            "format": "json",
-            "limit": 1,
-        }
-        try:
-            resp = requests.get(self.API_URL, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            tracks = data.get("recenttracks", {}).get("track")
-            if not tracks:
-                return None
-            track = tracks[0] if isinstance(tracks, list) else tracks
-            return {
-                "artist": track.get("artist", {}).get("#text", "Unknown Artist"),
-                "title": track.get("name", "Unknown Title"),
-                "now_playing": track.get("@attr", {}).get("nowplaying", "false") == "true",
-                "source": "librefm",
-            }
-        except Exception as e:
-            logger.error(f"libre.fm API failed: {e}")
-            return None
-
-    def get_top_artists_weekly(self, limit: int = 5) -> list[dict]:
-        params = {
-            "method": "user.getTopArtists",
-            "user": self.username,
-            "format": "json",
-            "period": "7day",
-            "limit": limit,
-        }
-        try:
-            resp = requests.get(self.API_URL, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            artists = data.get("topartists", {}).get("artist", [])
-            if not isinstance(artists, list):
-                artists = [artists]
-            return [
-                {"name": a.get("name", "Unknown"), "playcount": int(a.get("playcount", 0))}
-                for a in artists[:limit]
-            ]
-        except Exception as e:
-            logger.error(f"libre.fm top artists failed: {e}")
-            return []
+        super().__init__(username=username)
 
 
 class ListenBrainzClient:
@@ -820,13 +773,13 @@ def _format_book_started_toot(event: dict, settings: dict) -> str:
 
     template = settings.get("pu_books_start_template", "").strip()
     if template:
-        vars = {
+        substitutions = {
             "Title": event.get("book_title", ""),
             "Author": author,
             "AuthorLine": f"by {author}" if author else "",
             "Hashtags": hashtags,
         }
-        return _render_template(template, vars)
+        return _render_template(template, substitutions)
 
     return f"{emoji}Just started reading: {event['book_title']}{author_str}\n\n{hashtags}"
 
@@ -841,7 +794,7 @@ def _format_book_finished_toot(event: dict, settings: dict) -> str:
 
     template = settings.get("pu_books_finish_template", "").strip()
     if template:
-        vars = {
+        substitutions = {
             "Title": event.get("book_title", ""),
             "Author": author,
             "AuthorLine": f"by {author}" if author else "",
@@ -849,7 +802,7 @@ def _format_book_finished_toot(event: dict, settings: dict) -> str:
             "RatingSuffix": f" — {stars}" if stars else "",
             "Hashtags": hashtags,
         }
-        return _render_template(template, vars)
+        return _render_template(template, substitutions)
 
     return f"{emoji}Just finished reading: {event['book_title']}{author_str}{rating_str}\n\n{hashtags}"
 
@@ -868,7 +821,7 @@ def _format_album_toot(album: dict, settings: dict) -> str:
 
     template = settings.get("pu_album_template", "").strip()
     if template:
-        vars = {
+        substitutions = {
             "Artist": artist,
             "Album": name,
             "Year": year,
@@ -876,7 +829,7 @@ def _format_album_toot(album: dict, settings: dict) -> str:
             "Hashtags": hashtags,
             **_build_genre_vars(genres),
         }
-        return _render_template(template, vars)
+        return _render_template(template, substitutions)
 
     return "\n".join([artist, album_line, "", hashtags])
 
@@ -894,10 +847,10 @@ def _format_starred_toot(song: dict, settings: dict) -> str:
     template = settings.get("pu_star_template", "").strip()
     if template:
         mbid = song.get("musicBrainzId", "")
-        song_link = _get_odesli_url(mbid) if mbid else ""
+        song_link = _get_odesli_url(mbid) if (mbid and "%SongLink%" in template) else ""
         lfm_key = settings.get("pu_lastfm_api_key", "").strip()
-        similar_artists = _get_similar_artists(artist, lfm_key) if lfm_key else ""
-        vars = {
+        similar_artists = _get_similar_artists(artist, lfm_key) if (lfm_key and "%SimilarArtists%" in template) else ""
+        substitutions = {
             "Artist": artist,
             "Title": title,
             "Album": album,
@@ -908,7 +861,7 @@ def _format_starred_toot(song: dict, settings: dict) -> str:
             "SimilarArtists": similar_artists,
             "Hashtags": hashtags,
         }
-        return _render_template(template, vars)
+        return _render_template(template, substitutions)
 
     return f"{artist} - {title}\n\n{hashtags}"
 
@@ -1019,7 +972,7 @@ def _build_genre_vars(genres: list, base_count: int = 5) -> dict:
     return result
 
 
-def _render_template(template: str, vars: dict) -> str:
+def _render_template(template: str, substitutions: dict) -> str:
     """Render a toot template substituting %Variable% placeholders.
 
     Lines that were non-blank in the template but resolve to blank after
@@ -1028,11 +981,11 @@ def _render_template(template: str, vars: dict) -> str:
     """
     result_lines = []
     # Sort longest keys first so %GenreTags:3% is replaced before %GenreTags%
-    sorted_keys = sorted(vars.keys(), key=len, reverse=True)
+    sorted_keys = sorted(substitutions.keys(), key=len, reverse=True)
     for line in template.split("\n"):
         substituted = line
         for key in sorted_keys:
-            substituted = substituted.replace(f"%{key}%", vars[key] or "")
+            substituted = substituted.replace(f"%{key}%", substitutions[key] or "")
         stripped = substituted.strip()
         # Drop lines that had content (variables) but resolved to nothing
         if stripped == "" and line.strip() != "":
@@ -1157,9 +1110,9 @@ def _format_abs_finished_toot(book: dict, settings: dict, share_url: str = "") -
 
     template = settings.get("pu_abs_finished_template", "").strip()
     if template:
-        vars = _abs_vars(book, settings, share_url, hashtags, genres)
-        vars["Title"] = f"Just finished: {title}"
-        return _render_template(template, vars)
+        substitutions = _abs_vars(book, settings, share_url, hashtags, genres)
+        substitutions["Title"] = f"Just finished: {title}"
+        return _render_template(template, substitutions)
 
     parts = [f"Just finished: {title}"]
     if subtitle:
@@ -1611,7 +1564,6 @@ class ProfileUpdater:
                                             if settings.get("pu_album_confirm") == "1":
                                                 webhook_url = settings.get("discord_webhook_url", "").strip()
                                                 if webhook_url:
-                                                    from app.config import APP_URL
                                                     token = _queue_pending_toot(
                                                         label, toot_text, cover_bytes,
                                                         "image/jpeg", label,
@@ -1781,7 +1733,6 @@ class ProfileUpdater:
                             if settings.get("pu_abs_confirm") == "1":
                                 webhook_url = settings.get("discord_webhook_url", "").strip()
                                 if webhook_url:
-                                    from app.config import APP_URL
                                     token = _queue_pending_toot(
                                         label, toot_text, cover_bytes,
                                         "image/jpeg", f"Cover of {label}",

@@ -732,10 +732,8 @@ def get_unfollowers(conn: sqlite3.Connection) -> list[dict]:
                MAX(CASE WHEN event_type = 'unfollowed' THEN occurred_at END) as unfollowed_at,
                MIN(CASE WHEN event_type = 'followed'   THEN occurred_at END) as followed_at
            FROM follower_events
-           WHERE account_id IN (
-               SELECT DISTINCT account_id FROM follower_events WHERE event_type = 'unfollowed'
-           )
            GROUP BY account_id
+           HAVING MAX(CASE WHEN event_type = 'unfollowed' THEN occurred_at END) IS NOT NULL
            ORDER BY unfollowed_at DESC"""
     ).fetchall()
     return [dict(r) for r in rows]
