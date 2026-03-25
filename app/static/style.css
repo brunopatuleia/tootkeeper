@@ -52,6 +52,18 @@ a:hover {
     flex-wrap: wrap;
 }
 
+.nav-hamburger {
+    display: none;
+}
+
+.nav-links-settings {
+    display: none;
+}
+
+.nav-search-mobile {
+    display: none;
+}
+
 .nav-brand a {
     font-size: 1.25rem;
     font-weight: 700;
@@ -263,25 +275,95 @@ h2 {
 }
 
 @media (max-width: 768px) {
-    .dash-columns {
-        grid-template-columns: 1fr;
-    }
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    /* Layout */
+    .dash-columns { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash-hero { flex-direction: column; align-items: flex-start; }
+    .container { padding: 1rem; }
+    .card-footer { flex-wrap: wrap; gap: 0.5rem; }
+
+    /* Navbar — hamburger mode */
     .navbar {
         padding: 0.75rem 1rem;
+        flex-wrap: nowrap;
+        position: relative;
     }
-    .container {
-        padding: 1rem;
+    .nav-hamburger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text);
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-size: 1.1rem;
+        margin-left: auto;
+        flex-shrink: 0;
     }
-    .nav-search {
-        margin-left: 0;
+    .nav-hamburger:hover { background: var(--bg-hover); }
+
+    /* Nav dropdown */
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        flex-direction: column;
+        padding: 0.5rem;
+        z-index: 200;
+        gap: 0.1rem;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        border-radius: var(--radius);
+    }
+    .nav-sep { display: none; }
+    .nav-links-settings { display: block; }
+
+    /* Search inside dropdown */
+    .nav-search-mobile {
+        display: flex;
         width: 100%;
+        gap: 0.5rem;
+        padding: 0.4rem 0.25rem 0.1rem;
     }
-    .nav-search input {
+    .nav-search-mobile input {
         flex: 1;
-        width: auto;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 0.6rem 0.75rem;
+        border-radius: var(--radius);
+        font-size: 0.95rem;
+    }
+    .nav-search-mobile input:focus { outline: none; border-color: var(--accent); }
+    .nav-search-mobile button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 0.6rem 0.9rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+    }
+
+    /* Hide desktop search and settings gear */
+    .nav-search { display: none; }
+    .nav-settings { display: none; }
+
+    /* Responsive tables */
+    .card table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 

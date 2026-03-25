@@ -116,3 +116,21 @@ async function checkVersion() {
 }
 
 document.addEventListener('DOMContentLoaded', checkVersion);
+
+// Hamburger menu
+(function () {
+    const btn = document.getElementById('nav-hamburger');
+    const menu = document.getElementById('nav-links');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open);
+    });
+    document.addEventListener('click', function (e) {
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+            menu.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    });
+}());

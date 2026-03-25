@@ -11,7 +11,8 @@
         <div class="nav-brand">
             <a href="/">Mastoferr</a>
         </div>
-        <div class="nav-links">
+        <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+        <div class="nav-links" id="nav-links">
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
             <span class="nav-sep"></span>
             <a href="/toots" class="{% if request.url.path == '/toots' %}active{% endif %}">Toots</a>
@@ -23,6 +24,12 @@
             <a href="/interactions" class="{% if request.url.path == '/interactions' %}active{% endif %}">{{ app_settings().get('interactions_tab_name') or 'Friends or Stalkers' }}</a>
             <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
+            <span class="nav-sep"></span>
+            <a href="/settings" class="nav-links-settings {% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
+            <form class="nav-search-mobile" action="/search" method="get">
+                <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
+                <button type="submit">&#128269;</button>
+            </form>
         </div>
         <form class="nav-search" action="/search" method="get">
             <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
