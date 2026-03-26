@@ -1,9 +1,8 @@
 import hashlib
-import html
 import hmac
+import html
 import logging
 import math
-import re
 import secrets
 import threading
 import time
@@ -226,10 +225,6 @@ app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 
-def _sanitize_filename(name: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_-]", "", name)
-
-
 def _media_url(attachment: dict) -> str | None:
     """Return a local /media/ URL if the file was downloaded, else the remote URL."""
     import json as _json
@@ -239,8 +234,6 @@ def _media_url(attachment: dict) -> str | None:
     media_id = str(attachment.get("id", ""))
     if not media_id:
         return attachment.get("url") or attachment.get("preview_url")
-
-    media_id = _sanitize_filename(media_id)
 
     # Check for local file
     for ext in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4"):
@@ -257,8 +250,6 @@ def _media_preview_url(attachment: dict) -> str | None:
     media_id = str(attachment.get("id", ""))
     if not media_id:
         return attachment.get("preview_url")
-
-    media_id = _sanitize_filename(media_id)
 
     for ext in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
         local = media_dir / f"{media_id}_preview{ext}"
@@ -1020,7 +1011,6 @@ async def confirm_toot(token: str, request: Request):
     with get_db() as conn:
         instance_url = get_setting(conn, "instance_url")
         access_token = get_setting(conn, "access_token")
-        visibility = get_setting(conn, "pu_toot_visibility") or "public"
     if not instance_url or not access_token:
         return HTMLResponse(
             "<h2>Mastodon not configured.</h2><p>Connect your account first.</p>",
@@ -1039,15 +1029,12 @@ async def confirm_toot(token: str, request: Request):
         except Exception as e:
             logger.warning(f"confirm-toot: cover upload failed ({entry['label']}): {e}")
     try:
-        client.status_post(entry["text"], media_ids=media_ids, visibility=visibility)
+        client.status_post(entry["text"], media_ids=media_ids, visibility="public")
     except Exception as e:
         logger.error(f"confirm-toot: post failed ({entry['label']}): {e}")
         return HTMLResponse("<h2>Failed to post.</h2><p>An error occurred. Check the application logs.</p>", status_code=500)
-    label = entry["label"]
-    safe_label = html.escape(entry["label"])
     return HTMLResponse(
-        f"<h2>Posted!</h2><p><strong>{label}</strong> has been posted to Mastodon.</p>",
-        f"<h2>Posted!</h2><p><strong>{safe_label}</strong> has been posted to Mastodon.</p>",
+        f"<h2>Posted!</h2><p><strong>{html.escape(entry['label'])}</strong> has been posted to Mastodon.</p>",
         status_code=200,
     )
 
@@ -1084,7 +1071,6 @@ async def api_sync(request: Request):
 
 SERVICES_SETTINGS_KEYS = [
     "pu_lastfm_username", "pu_lastfm_api_key",
-    "pu_librefm_username",
     "pu_listenbrainz_username", "pu_listenbrainz_token",
     "pu_navidrome_url", "pu_navidrome_username", "pu_navidrome_password",
     "pu_spotify_client_id", "pu_spotify_client_secret", "pu_spotify_refresh_token",
@@ -1123,13 +1109,6 @@ AUTO_TOOTS_SETTINGS_KEYS = [
     "pu_abs_finished_hashtags",
     "abs_public_url", "abs_share_expiry_hours",
     "discord_webhook_url",
-    "pu_toot_visibility",
-    "pu_album_template",
-    "pu_star_template",
-    "pu_abs_template",
-    "pu_abs_finished_template",
-    "pu_books_start_template",
-    "pu_books_finish_template",
 ]
 
 AUTO_TOOTS_CHECKBOX_KEYS = [
@@ -1138,7 +1117,6 @@ AUTO_TOOTS_CHECKBOX_KEYS = [
     "pu_album_enabled", "pu_album_confirm",
     "pu_abs_enabled", "pu_abs_confirm",
     "pu_abs_finished_enabled", "pu_abs_finished_confirm",
-    "pu_nd_star_confirm",
     "pu_nd_star_toot_enabled",
 ]
 
