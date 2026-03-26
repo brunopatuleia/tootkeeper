@@ -2,7 +2,7 @@
 
 A self-hosted Mastodon activity archiver with full-text search, profile updater, and automated toots.
 
-> Built entirely through vibe coding with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Security reviewed by [Claude Code](https://claude.ai/claude-code) and Gemini Code Assist.
+> Built entirely through vibe coding with [Claude Code](https://claude.ai/claude-code). Security reviewed by [Claude Code](https://claude.ai/claude-code) and Gemini Code Assist.
 
 ## Features
 
@@ -16,20 +16,38 @@ A self-hosted Mastodon activity archiver with full-text search, profile updater,
 - AI-powered roast of your posting habits
 - OAuth login — no tokens to copy/paste
 - Dark, responsive web UI
-- Docker-ready
+- Docker-ready (amd64 + arm64)
 
 ## Quick Start
 
+1. Create a `docker-compose.yml`:
+
+```yaml
+services:
+  mastoferr:
+    image: patuleia/mastoferr:latest
+    ports:
+      - "6886:6886"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+```
+
+2. Create a `.env` file — see [Configuration](https://github.com/brunopatuleia/MastoFerr/wiki/Configuration) for all options.
+
+3. Run it:
+
 ```bash
-git clone https://github.com/brunopatuleia/MastoFerr.git
-cd MastoFerr
-cp .env.example .env
 docker compose up -d
 ```
 
-Open `http://localhost:6886`, enter your Mastodon instance, and authorize.
+4. Open `http://localhost:6886`, enter your Mastodon instance, and authorize.
 
-See the [Wiki](https://github.com/brunopatuleia/MastoFerr/wiki) for full documentation.
+## Documentation
+
+Full docs at the [Wiki](https://github.com/brunopatuleia/MastoFerr/wiki).
 
 ## Tech Stack
 
