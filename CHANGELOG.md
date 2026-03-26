@@ -13,6 +13,28 @@ All notable changes to Mastoferr are documented here.
 
 ---
 
+## [2026-03-26]
+
+### Added
+- libre.fm as a music source for the profile updater and auto-toots (no API key required)
+- `%SimilarArtists%` variable in the Loved Track template — pulls top 3 similar artists from Last.fm `artist.getSimilar`
+- Clickable variable chips in all template editors — click to insert `%Variable%` at the cursor
+- Profile links on the Followers / Users page unfollowers table and event cards
+- "Followed at" date column in the unfollowers table
+- Mobile-responsive navigation: hamburger menu, collapsible nav, responsive tables
+
+### Fixed
+- Duplicate toots on settings save: old profile updater thread was not waited for before spawning a new one
+- Duplicate album toots: double-check locking pattern prevents two threads posting simultaneously
+
+### Security
+- `/confirm-toot` XSS follow-up: previous fix created `safe_label` but the `HTMLResponse` still used the unescaped `label`; corrected to use `html.escape()` inline
+
+### Refactored
+- Applied code review fixes (simplify pass): module-level `APP_URL` import, `vars` → `substitutions` rename, guard expensive Last.fm/Odesli API calls behind template content checks, unified `LastFmClient`/`LibreFmClient` into `_LastFmCompatClient` base class, SQL `HAVING` clause replaces subquery in `get_unfollowers()`
+
+---
+
 ## [2026-03-23]
 
 ### Added
