@@ -24,7 +24,7 @@ import requests
 from mastodon import Mastodon, MastodonError
 
 from app.config import APP_URL
-from app.database import get_all_settings, get_db, get_setting, set_setting
+from app.database import can_post, get_all_settings, get_db, get_setting, record_post, set_setting
 
 logger = logging.getLogger(__name__)
 
@@ -878,6 +878,7 @@ def _queue_pending_toot(
     cover_bytes: bytes | None,
     cover_mime: str,
     cover_desc: str,
+    post_type: str = "unknown",
     ttl_seconds: int = 86400,
 ) -> str:
     """Store a toot for later confirmation. Returns the opaque token."""
@@ -889,6 +890,7 @@ def _queue_pending_toot(
             "cover_bytes": cover_bytes,
             "cover_mime": cover_mime,
             "cover_desc": cover_desc,
+            "post_type": post_type,
             "expires": time.time() + ttl_seconds,
         }
     return token
@@ -1346,10 +1348,22 @@ class ProfileUpdater:
         toot_text: str,
         cover_bytes: bytes | None,
         label: str,
+        post_type: str,
         mime: str = "image/jpeg",
         visibility: str = "public",
     ) -> None:
-        """Upload cover (if any) and post a status. Logs errors."""
+        """Upload cover (if any) and post a status. Logs errors.
+
+        Checks the dedup failsafe before posting: blocks if the same post_type
+        was sent within 30 minutes or the same content was sent within 24 hours.
+        Records the post on success so future calls are guarded.
+        """
+        with get_db() as conn:
+            if not can_post(conn, post_type, toot_text):
+                logger.warning(
+                    f"Toot blocked by dedup failsafe (type={post_type}): {label}"
+                )
+                return
         media_ids = None
         if cover_bytes:
             try:
@@ -1363,6 +1377,8 @@ class ProfileUpdater:
                 logger.error(f"Failed to upload cover ({label}): {e}")
         try:
             mastodon.status_post(toot_text, media_ids=media_ids, visibility=visibility)
+            with get_db() as conn:
+                record_post(conn, post_type, toot_text)
         except MastodonError as e:
             logger.error(f"Failed to post toot ({label}): {e}")
 
@@ -1568,6 +1584,7 @@ class ProfileUpdater:
                                                         token = _queue_pending_toot(
                                                             label, toot_text, cover_bytes,
                                                             "image/jpeg", label,
+                                                            post_type="album",
                                                         )
                                                         _send_discord_confirmation(
                                                             webhook_url, label, toot_text,
@@ -1576,9 +1593,9 @@ class ProfileUpdater:
                                                         logger.info(f"Album toot queued for confirmation: {label}")
                                                     else:
                                                         logger.warning("pu_album_confirm is set but discord_webhook_url is empty — posting directly")
-                                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
+                                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="album", visibility=settings.get("pu_toot_visibility") or "public")
                                                 else:
-                                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
+                                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="album", visibility=settings.get("pu_toot_visibility") or "public")
                                                     logger.info(f"Posted album toot: {label} ({seen}/{total} tracks heard)")
                                                 self._album_session["posted"] = True
                                                 self._save_album_session()
@@ -1611,14 +1628,14 @@ class ProfileUpdater:
                                             if settings.get("pu_nd_star_confirm") == "1":
                                                 webhook_url = settings.get("discord_webhook_url", "").strip()
                                                 if webhook_url:
-                                                    token = _queue_pending_toot(label, toot_text, cover_bytes, "image/jpeg", label)
+                                                    token = _queue_pending_toot(label, toot_text, cover_bytes, "image/jpeg", label, post_type="starred")
                                                     _send_discord_confirmation(webhook_url, label, toot_text, f"{APP_URL}/confirm-toot/{token}")
                                                     logger.info(f"Loved track toot queued for confirmation: {label}")
                                                 else:
                                                     logger.warning("pu_nd_star_confirm is set but discord_webhook_url is empty — posting directly")
-                                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
+                                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
                                             else:
-                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, visibility=settings.get("pu_toot_visibility") or "public")
+                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
                                                 logger.info(f"Posted starred toot: {label}")
                                         if starred_ids != known_ids:
                                             set_setting(conn, "pu_nd_starred_ids", json.dumps(list(starred_ids)))
@@ -1658,13 +1675,21 @@ class ProfileUpdater:
                             # Post in chronological order (oldest first)
                             for event in reversed(events):
                                 toot_text = None
+                                book_post_type = f"book_{event['type']}"
                                 if event["type"] == "started" and post_start:
                                     toot_text = _format_book_started_toot(event, settings)
                                 elif event["type"] == "finished" and post_finish:
                                     toot_text = _format_book_finished_toot(event, settings)
                                 if toot_text:
+                                    with get_db() as conn:
+                                        allowed = can_post(conn, book_post_type, toot_text)
+                                    if not allowed:
+                                        logger.warning(f"Book toot blocked by dedup failsafe ({book_post_type}): {event['book_title']}")
+                                        continue
                                     try:
                                         mastodon.status_post(toot_text, visibility=settings.get("pu_toot_visibility") or "public")
+                                        with get_db() as conn:
+                                            record_post(conn, book_post_type, toot_text)
                                         logger.info(f"Posted book {event['type']} toot: {event['book_title']}")
                                     except MastodonError as e:
                                         logger.error(f"Failed to post book toot: {e}")
@@ -1688,13 +1713,19 @@ class ProfileUpdater:
                                 top_artists = _get_top_artists_weekly(music_clients)
                                 if top_artists:
                                     toot_text = _format_weekly_artists_toot(top_artists, settings)
-                                    try:
-                                        mastodon.status_post(toot_text, visibility=settings.get("pu_toot_visibility") or "public")
-                                        with get_db() as conn:
-                                            set_setting(conn, "pu_last_weekly_artists_date", today_str)
-                                        logger.info("Posted weekly top artists toot")
-                                    except MastodonError as e:
-                                        logger.error(f"Failed to post weekly artists toot: {e}")
+                                    with get_db() as conn:
+                                        allowed = can_post(conn, "weekly_artists", toot_text)
+                                    if not allowed:
+                                        logger.warning("Weekly artists toot blocked by dedup failsafe")
+                                    else:
+                                        try:
+                                            mastodon.status_post(toot_text, visibility=settings.get("pu_toot_visibility") or "public")
+                                            with get_db() as conn:
+                                                set_setting(conn, "pu_last_weekly_artists_date", today_str)
+                                                record_post(conn, "weekly_artists", toot_text)
+                                            logger.info("Posted weekly top artists toot")
+                                        except MastodonError as e:
+                                            logger.error(f"Failed to post weekly artists toot: {e}")
 
                     # Audiobookshelf — toot when a new book is started or finished
                     if audiobookshelf and now - self.last_abs_update >= abs_interval:
@@ -1737,6 +1768,7 @@ class ProfileUpdater:
                                     token = _queue_pending_toot(
                                         label, toot_text, cover_bytes,
                                         "image/jpeg", f"Cover of {label}",
+                                        post_type="abs_started",
                                     )
                                     _send_discord_confirmation(
                                         webhook_url, label, toot_text,
@@ -1745,10 +1777,10 @@ class ProfileUpdater:
                                     logger.info(f"ABS started toot queued for confirmation: {label}")
                                 else:
                                     logger.warning("pu_abs_confirm is set but discord_webhook_url is empty — posting directly")
-                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", post_type="abs_started", visibility=settings.get("pu_toot_visibility") or "public")
                                     logger.info(f"Posted ABS started toot: {label}")
                             else:
-                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
+                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", post_type="abs_started", visibility=settings.get("pu_toot_visibility") or "public")
                                 logger.info(f"Posted ABS started toot: {label}")
                             tooted_ids.add(item_id)
 
@@ -1781,6 +1813,7 @@ class ProfileUpdater:
                                         token = _queue_pending_toot(
                                             label, toot_text, cover_bytes,
                                             "image/jpeg", f"Cover of {label}",
+                                            post_type="abs_finished",
                                         )
                                         _send_discord_confirmation(
                                             webhook_url, label, toot_text,
@@ -1789,10 +1822,10 @@ class ProfileUpdater:
                                         logger.info(f"ABS finished toot queued for confirmation: {label}")
                                     else:
                                         logger.warning("pu_abs_finished_confirm is set but discord_webhook_url is empty — posting directly")
-                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
+                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", post_type="abs_finished", visibility=settings.get("pu_toot_visibility") or "public")
                                         logger.info(f"Posted ABS finished toot: {label}")
                                 else:
-                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", visibility=settings.get("pu_toot_visibility") or "public")
+                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, f"Cover of {label}", post_type="abs_finished", visibility=settings.get("pu_toot_visibility") or "public")
                                     logger.info(f"Posted ABS finished toot: {label}")
 
                         # Persist updated sets (cap at 500 to avoid unbounded growth)

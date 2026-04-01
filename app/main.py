@@ -24,9 +24,11 @@ from app.config import APP_PASSWORD, APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN
 from app.profile_updater import ProfileUpdater, pop_pending_toot
 from app.roast import generate_roast, _add_to_roast_history
 from app.database import (
+    can_post,
     get_all_settings,
     get_bookmarks,
     get_db,
+    record_post,
     get_favorites,
     get_follower_chart_data,
     get_follower_counts,
@@ -1093,8 +1095,18 @@ async def confirm_toot(token: str, request: Request):
             media_ids = [media["id"]]
         except Exception as e:
             logger.warning(f"confirm-toot: cover upload failed ({entry['label']}): {e}")
+    post_type = entry.get("post_type", "unknown")
+    with get_db() as conn:
+        if not can_post(conn, post_type, entry["text"]):
+            logger.warning(f"confirm-toot blocked by dedup failsafe (type={post_type}): {entry['label']}")
+            return HTMLResponse(
+                f"<h2>Blocked.</h2><p>A <strong>{html.escape(post_type)}</strong> toot was already posted within the last 30 minutes, or this exact content was posted in the last 24 hours.</p>",
+                status_code=429,
+            )
     try:
         client.status_post(entry["text"], media_ids=media_ids, visibility="public")
+        with get_db() as conn:
+            record_post(conn, post_type, entry["text"])
     except Exception as e:
         logger.error(f"confirm-toot: post failed ({entry['label']}): {e}")
         return HTMLResponse("<h2>Failed to post.</h2><p>An error occurred. Check the application logs.</p>", status_code=500)

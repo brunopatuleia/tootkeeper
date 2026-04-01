@@ -1,5 +1,7 @@
+import hashlib
 import json
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -116,6 +118,16 @@ CREATE TABLE IF NOT EXISTS roast_ratings (
     rating INTEGER NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS posted_toots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_type TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    posted_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_posted_toots_type ON posted_toots(post_type, posted_at);
+CREATE INDEX IF NOT EXISTS idx_posted_toots_hash ON posted_toots(content_hash, posted_at);
 """
 
 FTS_SCHEMA = """
@@ -786,3 +798,45 @@ def get_hashtag_counts(conn: sqlite3.Connection, limit: int = 100, days: int | N
         )
         result.append({"name": row["hashtag"], "count": row["count"], "weight": round(weight, 2)})
     return result
+
+
+# ── Auto-toot dedup failsafe ──────────────────────────────────────────────────
+
+_TYPE_COOLDOWN = 30 * 60   # 30 minutes between posts of the same type
+_CONTENT_WINDOW = 24 * 60 * 60  # 24 hours before the same content can repeat
+
+
+def can_post(conn: sqlite3.Connection, post_type: str, content: str) -> bool:
+    """Return False if posting would violate the dedup failsafe rules:
+    - same post_type posted within the last 30 minutes, OR
+    - identical content posted within the last 24 hours.
+    """
+    now = time.time()
+    content_hash = hashlib.sha256(content.encode()).hexdigest()
+
+    row = conn.execute(
+        "SELECT posted_at FROM posted_toots WHERE post_type = ? ORDER BY posted_at DESC LIMIT 1",
+        (post_type,),
+    ).fetchone()
+    if row and now - row["posted_at"] < _TYPE_COOLDOWN:
+        return False
+
+    row = conn.execute(
+        "SELECT id FROM posted_toots WHERE content_hash = ? AND posted_at > ? LIMIT 1",
+        (content_hash, now - _CONTENT_WINDOW),
+    ).fetchone()
+    if row:
+        return False
+
+    return True
+
+
+def record_post(conn: sqlite3.Connection, post_type: str, content: str) -> None:
+    """Record a posted toot and prune entries older than 24 hours."""
+    now = time.time()
+    content_hash = hashlib.sha256(content.encode()).hexdigest()
+    conn.execute(
+        "INSERT INTO posted_toots (post_type, content_hash, posted_at) VALUES (?, ?, ?)",
+        (post_type, content_hash, now),
+    )
+    conn.execute("DELETE FROM posted_toots WHERE posted_at < ?", (now - _CONTENT_WINDOW,))
