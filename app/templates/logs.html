@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Logs - Mastoferr{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <h1 style="margin:0;">Logs</h1>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-left:auto;flex-wrap:wrap;">
+        <label style="color:var(--text-muted);font-size:0.85rem;">Min level:</label>
+        <select id="level-filter" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem 0.6rem;font-size:0.85rem;">
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+        </select>
+        <label style="color:var(--text-muted);font-size:0.85rem;margin-left:0.5rem;">
+            <input type="checkbox" id="auto-scroll" checked style="margin-right:0.3rem;">Auto-scroll
+        </label>
+        <label style="color:var(--text-muted);font-size:0.85rem;">
+            <input type="checkbox" id="auto-refresh" checked style="margin-right:0.3rem;">Live (3s)
+        </label>
+        <button id="clear-btn" style="background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem 0.8rem;cursor:pointer;font-size:0.85rem;">Clear</button>
+    </div>
+</div>
+
+<div id="log-container" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem;height:70vh;overflow-y:auto;font-family:monospace;font-size:0.8rem;line-height:1.5;">
+    <div id="log-entries"></div>
+    <div id="log-empty" style="color:var(--text-muted);text-align:center;padding:2rem;">No log entries yet.</div>
+</div>
+<div style="margin-top:0.5rem;color:var(--text-muted);font-size:0.8rem;" id="log-status">Loading…</div>
+
+<script>
+(function () {
+    const container = document.getElementById('log-container');
+    const entriesEl = document.getElementById('log-entries');
+    const emptyEl   = document.getElementById('log-empty');
+    const statusEl  = document.getElementById('log-status');
+    const levelSel  = document.getElementById('level-filter');
+    const autoScrollChk = document.getElementById('auto-scroll');
+    const autoRefreshChk = document.getElementById('auto-refresh');
+    const clearBtn  = document.getElementById('clear-btn');
+
+    const LEVEL_COLOR = {
+        DEBUG:    'var(--text-muted)',
+        INFO:     'var(--text)',
+        WARNING:  'var(--orange)',
+        ERROR:    'var(--red)',
+        CRITICAL: 'var(--red)',
+    };
+
+    let lastCount = -1;
+    let timer = null;
+
+    function formatEntry(e) {
+        const color = LEVEL_COLOR[e.level] || 'var(--text)';
+        const safeMsg = e.msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<div style="color:${color};white-space:pre-wrap;border-bottom:1px solid var(--border);padding:0.15rem 0;">${safeMsg}</div>`;
+    }
+
+    async function load() {
+        const level = levelSel.value;
+        try {
+            const resp = await fetch(`/api/logs?level=${level}`);
+            if (!resp.ok) return;
+            const entries = await resp.json();
+            if (entries.length !== lastCount) {
+                lastCount = entries.length;
+                if (entries.length === 0) {
+                    entriesEl.innerHTML = '';
+                    emptyEl.style.display = '';
+                } else {
+                    emptyEl.style.display = 'none';
+                    entriesEl.innerHTML = entries.map(formatEntry).join('');
+                    if (autoScrollChk.checked) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                }
+            }
+            const ts = new Date().toLocaleTimeString();
+            statusEl.textContent = `${entries.length} entries — last updated ${ts}`;
+        } catch (err) {
+            statusEl.textContent = 'Failed to fetch logs.';
+        }
+    }
+
+    function startTimer() {
+        if (timer) clearInterval(timer);
+        if (autoRefreshChk.checked) {
+            timer = setInterval(load, 3000);
+        }
+    }
+
+    levelSel.addEventListener('change', () => { lastCount = -1; load(); });
+    autoRefreshChk.addEventListener('change', startTimer);
+
+    clearBtn.addEventListener('click', async () => {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        lastCount = -1;
+        load();
+    });
+
+    load();
+    startTimer();
+})();
+</script>
+{% endblock %}

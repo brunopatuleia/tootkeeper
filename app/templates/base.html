@@ -26,6 +26,7 @@
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
             <span class="nav-sep"></span>
             <a href="/settings" class="nav-links-settings {% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
+            <a href="/logs" class="{% if request.url.path == '/logs' %}active{% endif %}">Logs</a>
             <form class="nav-search-mobile" action="/search" method="get">
                 <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
                 <button type="submit">&#128269;</button>

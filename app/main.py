@@ -1,3 +1,4 @@
+import collections
 import hashlib
 import hmac
 import html
@@ -51,10 +52,46 @@ from app.database import (
 from app.search import search
 import requests
 
+# ── In-memory log buffer ─────────────────────────────────────────────────────
+
+class _LogBuffer(logging.Handler):
+    """Keeps the last LOG_BUFFER_SIZE records in a thread-safe deque."""
+    MAX = 500
+
+    def __init__(self):
+        super().__init__()
+        self._buf: collections.deque = collections.deque(maxlen=self.MAX)
+        self._lock = threading.Lock()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        entry = {
+            "ts": record.created,
+            "level": record.levelname,
+            "name": record.name,
+            "msg": self.format(record),
+        }
+        with self._lock:
+            self._buf.append(entry)
+
+    def entries(self, min_level: str = "INFO") -> list[dict]:
+        level_no = getattr(logging, min_level, logging.INFO)
+        with self._lock:
+            return [e for e in self._buf if getattr(logging, e["level"], 0) >= level_no]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._buf.clear()
+
+
+_log_buffer = _LogBuffer()
+_log_buffer.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+logging.getLogger().addHandler(_log_buffer)
+
 logger = logging.getLogger(__name__)
 
 APP_DIR = Path(__file__).parent
@@ -584,6 +621,34 @@ async def api_rate_roast(request: Request):
                 pool = _json.loads(pool_raw)
                 pool = [r for r in pool if r != roast]
                 set_setting(conn, "roast_pool", _json.dumps(pool))
+    return JSONResponse({"status": "ok"})
+
+
+@app.get("/logs", response_class=HTMLResponse)
+async def logs_page(request: Request):
+    auth = _require_auth(request)
+    if auth:
+        return auth
+    return templates.TemplateResponse("logs.html", {"request": request})
+
+
+@app.get("/api/logs")
+async def api_logs(request: Request, level: str = "INFO"):
+    auth = _require_auth_api(request)
+    if auth:
+        return auth
+    level = level.upper()
+    if level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+        level = "INFO"
+    return JSONResponse(_log_buffer.entries(min_level=level))
+
+
+@app.post("/api/logs/clear")
+async def api_logs_clear(request: Request):
+    auth = _require_auth_api(request)
+    if auth:
+        return auth
+    _log_buffer.clear()
     return JSONResponse({"status": "ok"})
 
 
