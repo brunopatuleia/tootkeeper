@@ -1817,7 +1817,6 @@ class ProfileUpdater:
                                 if settings.get("pu_abs_finished_confirm") == "1":
                                     webhook_url = settings.get("discord_webhook_url", "").strip()
                                     if webhook_url:
-                                        from app.config import APP_URL
                                         token = _queue_pending_toot(
                                             label, toot_text, cover_bytes,
                                             "image/jpeg", f"Cover of {label}",

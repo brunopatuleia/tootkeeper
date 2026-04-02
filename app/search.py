@@ -71,10 +71,10 @@ def search(
 
     # Get paginated results with snippets
     offset = (page - 1) * per_page
-    search_params = [fts_query]
+    search_params = [_MARK_S, _MARK_E, fts_query]
     if source_type:
         search_params.append(source_type)
-    search_params.extend([_MARK_S, _MARK_E, per_page, offset])
+    search_params.extend([per_page, offset])
 
     results_sql = f"""
         SELECT source_type, source_id, snippet(search_index, 2, ?, ?, '...', 40) as snippet,
