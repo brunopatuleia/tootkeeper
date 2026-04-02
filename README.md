@@ -16,6 +16,7 @@ A self-hosted Mastodon activity archiver with full-text search, profile updater,
 - Weekly music recap post
 - Live log viewer at `/logs` with auto-refresh
 - AI-powered roast of your posting habits
+- Anonymous installation statistics (opt-out in Settings → Display)
 - OAuth login — no tokens to copy/paste
 - Dark, responsive web UI
 - Docker-ready (amd64 + arm64)
@@ -50,6 +51,14 @@ docker compose up -d
 ## Documentation
 
 Full docs at the [Wiki](https://github.com/brunopatuleia/MastoFerr/wiki).
+
+## Privacy & Telemetry
+
+Mastoferr sends one anonymous ping per day to a public stats endpoint once your account is connected. The only data sent is a random installation UUID generated at first run — your country is derived server-side from your IP address and the IP is never stored. No Mastodon handle, instance URL, or any personal data is ever transmitted.
+
+You can inspect every entry in the public ledger at [github.com/brunopatuleia/mastoferr-stats](https://github.com/brunopatuleia/mastoferr-stats).
+
+To opt out: **Settings → Display → Opt out of anonymous usage statistics**.
 
 ## Tech Stack
 

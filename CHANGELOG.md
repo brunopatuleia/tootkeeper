@@ -19,6 +19,19 @@ All notable changes to Mastoferr are documented here.
 
 ---
 
+## [2026-04-03]
+
+### Added
+- **Anonymous installation telemetry** — on first startup, a random UUID is generated and stored locally; once per day a ping is sent to a Cloudflare Worker that derives the country from the server IP and writes `{country, last_seen}` to a public GitHub repo ([mastoferr-stats](https://github.com/brunopatuleia/mastoferr-stats)); no personal data is ever transmitted
+- **Opt-out toggle** — Settings → Display → "Opt out of anonymous usage statistics"
+- **Live installation stats** — Settings → About shows total opted-in installations and a country breakdown, fetched live from the public stats endpoint
+- **Connections page** — Settings sub-nav "Profile" renamed to "Connections"; Mastodon account, all external service credentials, and AI provider are now unified on one page with a short disclaimer under each service explaining what it is used for; "External Services" and "AI Roast" removed from sub-nav
+- **Search fixed** — FTS5 snippet parameter order was wrong (markers bound before the MATCH query); fixed parameter ordering and added `| safe` to the template so `<mark>` highlights render correctly and apostrophes display as `'` instead of `&#x27;`
+- GitHub repo link appended to roast toots so recipients can find the project
+
+### Fixed
+- `APP_URL` `UnboundLocalError` in profile updater — a redundant local `from app.config import APP_URL` inside a nested `if` block caused Python 3.12 to treat `APP_URL` as local to the entire method, breaking Navidrome loved-track and ABS confirmation pings
+
 ## [Unreleased]
 
 ### Added
