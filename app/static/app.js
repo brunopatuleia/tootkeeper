@@ -117,19 +117,19 @@ async function checkVersion() {
 
 document.addEventListener('DOMContentLoaded', checkVersion);
 
-// Hamburger menu
+// Hamburger menu (mobile sidebar toggle)
 (function () {
     const btn = document.getElementById('nav-hamburger');
-    const menu = document.getElementById('nav-links');
-    if (!btn || !menu) return;
+    const sidebar = document.getElementById('main-sidebar');
+    if (!btn || !sidebar) return;
     btn.addEventListener('click', function (e) {
         e.stopPropagation();
-        const open = menu.classList.toggle('open');
+        const open = sidebar.classList.toggle('open');
         btn.setAttribute('aria-expanded', open);
     });
     document.addEventListener('click', function (e) {
-        if (!menu.contains(e.target) && !btn.contains(e.target)) {
-            menu.classList.remove('open');
+        if (!sidebar.contains(e.target) && !btn.contains(e.target)) {
+            sidebar.classList.remove('open');
             btn.setAttribute('aria-expanded', 'false');
         }
     });

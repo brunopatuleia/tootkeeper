@@ -7,45 +7,45 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar">
+    <aside class="main-sidebar" id="main-sidebar">
         <div class="nav-brand">
             <a href="/">Mastoferr</a>
         </div>
-        <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
-        <div class="nav-links" id="nav-links">
+        <nav class="sidebar-nav">
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-            <span class="nav-sep"></span>
+            <div class="sidebar-nav-sep"></div>
             <a href="/toots" class="{% if request.url.path == '/toots' %}active{% endif %}">Toots</a>
             <a href="/notifications" class="{% if request.url.path == '/notifications' %}active{% endif %}">Notifs</a>
             <a href="/favorites" class="{% if request.url.path == '/favorites' %}active{% endif %}">Favorites</a>
             <a href="/bookmarks" class="{% if request.url.path == '/bookmarks' %}active{% endif %}">Bookmarks</a>
-            <span class="nav-sep"></span>
+            <div class="sidebar-nav-sep"></div>
             <a href="/followers" class="{% if request.url.path == '/followers' %}active{% endif %}">Users</a>
             <a href="/interactions" class="{% if request.url.path == '/interactions' %}active{% endif %}">{{ app_settings().get('interactions_tab_name') or 'Friends or Stalkers' }}</a>
             <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
-            <span class="nav-sep"></span>
-            <a href="/settings" class="nav-links-settings {% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
+            <div class="sidebar-nav-sep"></div>
             <a href="/logs" class="{% if request.url.path == '/logs' %}active{% endif %}">Logs</a>
-            <form class="nav-search-mobile" action="/search" method="get">
+            <a href="/settings" class="{% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
+        </nav>
+    </aside>
+
+    <div class="page-wrapper">
+        <header class="topbar">
+            <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+            <form class="topbar-search" action="/search" method="get">
                 <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
                 <button type="submit">&#128269;</button>
             </form>
-        </div>
-        <form class="nav-search" action="/search" method="get">
-            <input type="text" name="q" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
-            <button type="submit">&#128269;</button>
-        </form>
-        <a href="/settings" class="nav-settings {% if request.url.path == '/settings' %}active{% endif %}" title="Settings">&#9881;</a>
-    </nav>
+        </header>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+        <main class="container">
+            {% block content %}{% endblock %}
+        </main>
 
-    <footer class="site-footer">
-        <span>Mastoferr v{{ APP_VERSION }}</span>
-    </footer>
+        <footer class="site-footer">
+            <span>Mastoferr v{{ APP_VERSION }}</span>
+        </footer>
+    </div>
 
     <script src="/static/app.js"></script>
 </body>

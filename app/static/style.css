@@ -27,6 +27,7 @@ body {
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
+    display: flex;
 }
 
 a {
@@ -38,30 +39,25 @@ a:hover {
     text-decoration: underline;
 }
 
-/* Navbar */
-.navbar {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 0.75rem 2rem;
+/* Left sidebar */
+.main-sidebar {
+    width: 200px;
+    min-width: 200px;
     background: var(--bg-card);
-    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
     position: sticky;
     top: 0;
+    height: 100vh;
+    overflow-y: auto;
     z-index: 100;
-    flex-wrap: wrap;
 }
 
-.nav-hamburger {
-    display: none;
-}
-
-.nav-links-settings {
-    display: none;
-}
-
-.nav-search-mobile {
-    display: none;
+.nav-brand {
+    padding: 1.25rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .nav-brand a {
@@ -71,56 +67,87 @@ a:hover {
     text-decoration: none;
 }
 
-.nav-links {
+.sidebar-nav {
     display: flex;
-    gap: 0.25rem;
-    align-items: center;
+    flex-direction: column;
+    padding: 0.5rem 0;
 }
 
-.nav-sep {
-    width: 1px;
-    height: 18px;
-    background: var(--border);
-    margin: 0 0.25rem;
-}
-
-.nav-links a {
+.sidebar-nav a {
+    display: block;
+    padding: 0.55rem 1rem;
     color: var(--text-muted);
-    padding: 0.4rem 0.75rem;
-    border-radius: var(--radius);
     font-size: 0.9rem;
+    border-left: 3px solid transparent;
     transition: background 0.15s, color 0.15s;
+    text-decoration: none;
 }
 
-.nav-links a:hover,
-.nav-links a.active {
+.sidebar-nav a:hover {
     background: var(--bg-hover);
     color: var(--text);
     text-decoration: none;
 }
 
-.nav-search {
-    margin-left: auto;
+.sidebar-nav a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.sidebar-nav-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 0.4rem 0;
+}
+
+/* Page wrapper */
+.page-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* Topbar */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 2rem;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    gap: 1rem;
+}
+
+.nav-hamburger {
+    display: none;
+}
+
+.topbar-search {
     display: flex;
     gap: 0.5rem;
 }
 
-.nav-search input {
+.topbar-search input {
     background: var(--bg);
     border: 1px solid var(--border);
     color: var(--text);
     padding: 0.4rem 0.75rem;
     border-radius: var(--radius);
     font-size: 0.9rem;
-    width: 220px;
+    width: 320px;
 }
 
-.nav-search input:focus {
+.topbar-search input:focus {
     outline: none;
     border-color: var(--accent);
 }
 
-.nav-search button {
+.topbar-search button {
     background: var(--accent);
     color: white;
     border: none;
@@ -130,7 +157,7 @@ a:hover {
     font-size: 0.9rem;
 }
 
-.nav-search button:hover {
+.topbar-search button:hover {
     background: var(--accent-hover);
 }
 
@@ -282,12 +309,36 @@ h2 {
     .container { padding: 1rem; }
     .card-footer { flex-wrap: wrap; gap: 0.5rem; }
 
-    /* Navbar — hamburger mode */
-    .navbar {
-        padding: 0.75rem 1rem;
-        flex-wrap: nowrap;
-        position: relative;
+    /* Sidebar — hidden on mobile, toggled by hamburger */
+    body { display: block; }
+
+    .main-sidebar {
+        position: fixed;
+        left: -200px;
+        top: 0;
+        height: 100vh;
+        transition: left 0.25s;
+        z-index: 200;
+        box-shadow: none;
     }
+
+    .main-sidebar.open {
+        left: 0;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.5);
+    }
+
+    .page-wrapper {
+        margin-left: 0;
+    }
+
+    .topbar {
+        justify-content: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        position: sticky;
+        top: 0;
+    }
+
     .nav-hamburger {
         display: flex;
         align-items: center;
@@ -300,64 +351,12 @@ h2 {
         border-radius: var(--radius);
         cursor: pointer;
         font-size: 1.1rem;
-        margin-left: auto;
         flex-shrink: 0;
     }
     .nav-hamburger:hover { background: var(--bg-hover); }
 
-    /* Nav dropdown */
-    .nav-links {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: var(--bg-card);
-        border-bottom: 1px solid var(--border);
-        flex-direction: column;
-        padding: 0.5rem;
-        z-index: 200;
-        gap: 0.1rem;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-    }
-    .nav-links.open { display: flex; }
-    .nav-links a {
-        padding: 0.75rem 1rem;
-        font-size: 0.95rem;
-        border-radius: var(--radius);
-    }
-    .nav-sep { display: none; }
-    .nav-links-settings { display: block; }
-
-    /* Search inside dropdown */
-    .nav-search-mobile {
-        display: flex;
-        width: 100%;
-        gap: 0.5rem;
-        padding: 0.4rem 0.25rem 0.1rem;
-    }
-    .nav-search-mobile input {
-        flex: 1;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--text);
-        padding: 0.6rem 0.75rem;
-        border-radius: var(--radius);
-        font-size: 0.95rem;
-    }
-    .nav-search-mobile input:focus { outline: none; border-color: var(--accent); }
-    .nav-search-mobile button {
-        background: var(--accent);
-        color: white;
-        border: none;
-        padding: 0.6rem 0.9rem;
-        border-radius: var(--radius);
-        cursor: pointer;
-    }
-
-    /* Hide desktop search and settings gear */
-    .nav-search { display: none; }
-    .nav-settings { display: none; }
+    .topbar-search { flex: 1; }
+    .topbar-search input { width: 100%; }
 
     /* Responsive tables */
     .card table {
@@ -1083,22 +1082,6 @@ h2 {
     border-color: var(--accent);
 }
 
-/* Settings nav icon */
-.nav-settings {
-    color: var(--text-muted);
-    font-size: 1.25rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: var(--radius);
-    transition: color 0.15s, background 0.15s;
-    text-decoration: none;
-}
-
-.nav-settings:hover,
-.nav-settings.active {
-    color: var(--text);
-    background: var(--bg-hover);
-    text-decoration: none;
-}
 
 /* Settings page — sidebar layout */
 .settings-layout {
