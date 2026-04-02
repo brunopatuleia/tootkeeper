@@ -87,7 +87,7 @@ async function rateRoast(rating) {
 }
 
 function tootRoast(instanceUrl) {
-    const text = document.getElementById('roast-text').textContent.trim() + '\n\nRoasted by Mastoferr';
+    const text = document.getElementById('roast-text').textContent.trim() + '\n\nRoasted by Mastoferr\nhttps://github.com/brunopatuleia/MastoFerr';
     const url = instanceUrl.replace(/\/$/, '') + '/share?text=' + encodeURIComponent(text);
     window.open(url, '_blank');
 }
