@@ -502,6 +502,14 @@
                            value="{{ settings.get('interactions_days', '') }}">
                     <p class="setup-hint" style="margin-top:0.25rem;">How many days back to look for interactions. Default: 15.</p>
                 </div>
+                <div class="settings-section" style="margin-top:1.5rem;">
+                    <h2>Usage Statistics</h2>
+                    <p class="setup-hint" style="margin-bottom:0.5rem;">Mastoferr can send a daily anonymous ping to help the developer know how many installations are running and in which country. No personal data is ever sent — only a random installation ID and your country (derived from your server's IP). You can see the raw data at <a href="https://github.com/brunopatuleia/mastoferr-stats" target="_blank">github.com/brunopatuleia/mastoferr-stats</a>.</p>
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" name="telemetry_opt_out" value="1" {{ 'checked' if settings.get('telemetry_opt_out', '0') == '1' }}>
+                        Opt out of anonymous usage statistics
+                    </label>
+                </div>
                 <div class="settings-actions" style="margin-top:1rem;">
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
@@ -560,6 +568,15 @@
                 </p>
                 <p class="setup-hint" style="margin-top: 0.5rem;">Built with vibe coding via <a href="https://claude.ai/claude-code" target="_blank">Claude Code</a>.</p>
             </div>
+            <div class="settings-section" style="margin-top:1.5rem;">
+                <h2>Live Installations</h2>
+                <p class="setup-hint" style="margin-bottom:0.75rem;">Opted-in instances that have pinged in the last 30 days. Raw data: <a href="https://github.com/brunopatuleia/mastoferr-stats" target="_blank">github.com/brunopatuleia/mastoferr-stats</a>.</p>
+                <div id="stats-loading" class="setup-hint">Loading...</div>
+                <div id="stats-content" style="display:none;">
+                    <p><strong id="stats-total"></strong> active installation<span id="stats-plural"></span></p>
+                    <div id="stats-countries" style="margin-top:0.5rem;"></div>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -584,6 +601,7 @@
             var panelId = this.dataset.panel;
             showPanel(panelId);
             history.replaceState(null, '', '#' + panelId);
+            if (panelId === 'about') loadStats();
         });
     });
 
@@ -592,6 +610,24 @@
         showPanel(hash);
     }
 })();
+
+function loadStats() {
+    fetch('https://mastoferr-stats.patuleia.workers.dev/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('stats-loading').style.display = 'none';
+            document.getElementById('stats-content').style.display = '';
+            document.getElementById('stats-total').textContent = data.total;
+            document.getElementById('stats-plural').textContent = data.total === 1 ? '' : 's';
+            var countries = Object.entries(data.countries).sort(function(a, b) { return b[1] - a[1]; });
+            document.getElementById('stats-countries').innerHTML = countries
+                .map(function(c) { return '<span class="setup-hint" style="margin-right:1rem;">' + c[0] + ' ' + c[1] + '</span>'; })
+                .join('');
+        })
+        .catch(function() {
+            document.getElementById('stats-loading').textContent = 'Could not load stats.';
+        });
+}
 
 function toggleAiFields() {
     var provider = document.getElementById('ai_provider').value;

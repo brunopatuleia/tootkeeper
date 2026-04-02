@@ -7,6 +7,7 @@ import math
 import secrets
 import threading
 import time
+import uuid
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -186,6 +187,24 @@ def _get_credentials() -> tuple[str, str] | None:
     return None
 
 
+TELEMETRY_URL = "https://mastoferr-stats.patuleia.workers.dev/ping"
+
+
+def _send_telemetry_ping():
+    try:
+        with get_db() as conn:
+            if get_setting(conn, "telemetry_opt_out") == "1":
+                return
+            if not is_configured(conn):
+                return
+            installation_id = get_setting(conn, "installation_id")
+            if not installation_id:
+                return
+        requests.post(TELEMETRY_URL, json={"uuid": installation_id}, timeout=10)
+    except Exception:
+        pass
+
+
 def _run_sync_job():
     if not sync_lock.acquire(blocking=False):
         logger.info("Sync already running, skipping.")
@@ -207,10 +226,12 @@ def _start_scheduler():
 
     # Run initial sync in background thread
     threading.Thread(target=_run_sync_job, daemon=True).start()
+    threading.Thread(target=_send_telemetry_ping, daemon=True).start()
 
     if not scheduler.running:
         try:
             scheduler.add_job(_run_sync_job, "interval", minutes=POLL_INTERVAL, id="sync_job", replace_existing=True)
+            scheduler.add_job(_send_telemetry_ping, "interval", hours=24, id="telemetry_job", replace_existing=True)
             scheduler.start()
             logger.info("Scheduler started.")
         except Exception:
@@ -228,6 +249,11 @@ async def lifespan(app: FastAPI):
         if not _secret_key:
             _secret_key = secrets.token_hex(32)
             set_setting(conn, "secret_key", _secret_key)
+
+    # Generate a stable installation ID for anonymous telemetry
+    with get_db() as conn:
+        if not get_setting(conn, "installation_id"):
+            set_setting(conn, "installation_id", str(uuid.uuid4()))
 
     # Migrate env vars to DB if DB has no credentials but env vars are set
     with get_db() as conn:
@@ -931,6 +957,7 @@ async def settings_app(request: Request):
         days_val = str(form.get("interactions_days", "")).strip()
         if days_val.isdigit() and int(days_val) >= 1:
             set_setting(conn, "interactions_days", days_val)
+        set_setting(conn, "telemetry_opt_out", "1" if form.get("telemetry_opt_out") else "0")
     return RedirectResponse(url="/settings?saved=1#app", status_code=302)
 
 
