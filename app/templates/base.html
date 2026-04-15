@@ -25,6 +25,7 @@
             <a href="/hashtags" class="{% if request.url.path == '/hashtags' %}active{% endif %}">Hashtags</a>
             <a href="/topics" class="{% if request.url.path == '/topics' %}active{% endif %}">Topics</a>
             <div class="sidebar-nav-sep"></div>
+            <a href="/queue" class="{% if request.url.path == '/queue' %}active{% endif %}">Queue</a>
             <a href="/logs" class="{% if request.url.path == '/logs' %}active{% endif %}">Logs</a>
             <a href="/settings" class="{% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
             {% block sidebar_extra %}{% endblock %}

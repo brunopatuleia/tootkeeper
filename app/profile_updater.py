@@ -905,6 +905,24 @@ def pop_pending_toot(token: str) -> dict | None:
     return entry
 
 
+def list_pending_toots() -> list[dict]:
+    """Return all non-expired pending toots for the queue UI (read-only)."""
+    now = time.time()
+    with _pending_lock:
+        return [
+            {
+                "token": token,
+                "label": entry["label"],
+                "text": entry["text"],
+                "post_type": entry.get("post_type", "unknown"),
+                "expires_in": max(0, int(entry["expires"] - now)),
+                "has_cover": bool(entry.get("cover_bytes")),
+            }
+            for token, entry in _pending_toots.items()
+            if now <= entry["expires"]
+        ]
+
+
 def _expire_pending_toots() -> None:
     """Remove all expired entries. Call periodically from the updater loop."""
     now = time.time()
@@ -1578,17 +1596,21 @@ class ProfileUpdater:
                                                     album_info.get("cover_art_id", album_id)
                                                 )
                                                 label = f"{album_info['name']} by {album_info['artist']}"
+                                                # Persist posted=True BEFORE sending Discord notification
+                                                # so a crash between the two doesn't re-queue on restart.
+                                                self._album_session["posted"] = True
+                                                self._save_album_session()
                                                 if settings.get("pu_album_confirm") == "1":
                                                     webhook_url = settings.get("discord_webhook_url", "").strip()
                                                     if webhook_url:
-                                                        token = _queue_pending_toot(
+                                                        _queue_pending_toot(
                                                             label, toot_text, cover_bytes,
                                                             "image/jpeg", label,
                                                             post_type="album",
                                                         )
                                                         _send_discord_confirmation(
                                                             webhook_url, label, toot_text,
-                                                            f"{APP_URL}/confirm-toot/{token}",
+                                                            f"{APP_URL}/queue",
                                                         )
                                                         logger.info(f"Album toot queued for confirmation: {label}")
                                                     else:
@@ -1597,14 +1619,13 @@ class ProfileUpdater:
                                                 else:
                                                     self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="album", visibility=settings.get("pu_toot_visibility") or "public")
                                                     logger.info(f"Posted album toot: {label} ({seen}/{total} tracks heard)")
-                                                self._album_session["posted"] = True
-                                                self._save_album_session()
 
                         # Navidrome starred track → toot
                         if settings.get("pu_nd_star_toot_enabled") == "1" and navidrome_client:
                             try:
                                 starred = navidrome_client.get_starred_songs()
                                 starred_ids = {str(s["id"]) for s in starred}
+                                songs_to_notify: list[dict] = []
                                 with get_db() as conn:
                                     known_raw = get_setting(conn, "pu_nd_starred_ids")
                                     if known_raw is None:
@@ -1616,29 +1637,31 @@ class ProfileUpdater:
                                         new_ids = starred_ids - known_ids
                                         if new_ids:
                                             logger.info(f"Navidrome star toot: {len(new_ids)} new starred track(s)")
-                                        for song in starred:
-                                            if str(song["id"]) not in new_ids:
-                                                continue
-                                            toot_text = _format_starred_toot(song, settings)
-                                            label = f"{song.get('artist')} - {song.get('title')}"
-                                            cover_id = song.get("coverArt") or song.get("albumId")
-                                            cover_bytes = None
-                                            if cover_id:
-                                                cover_bytes = navidrome_client.get_cover_art_bytes(cover_id)
-                                            if settings.get("pu_nd_star_confirm") == "1":
-                                                webhook_url = settings.get("discord_webhook_url", "").strip()
-                                                if webhook_url:
-                                                    token = _queue_pending_toot(label, toot_text, cover_bytes, "image/jpeg", label, post_type="starred")
-                                                    _send_discord_confirmation(webhook_url, label, toot_text, f"{APP_URL}/confirm-toot/{token}")
-                                                    logger.info(f"Loved track toot queued for confirmation: {label}")
-                                                else:
-                                                    logger.warning("pu_nd_star_confirm is set but discord_webhook_url is empty — posting directly")
-                                                    self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
-                                            else:
-                                                self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
-                                                logger.info(f"Posted starred toot: {label}")
+                                            songs_to_notify = [s for s in starred if str(s["id"]) in new_ids]
+                                        # Persist updated known IDs BEFORE sending any notifications
+                                        # so a crash mid-notification doesn't cause re-queuing on restart.
                                         if starred_ids != known_ids:
                                             set_setting(conn, "pu_nd_starred_ids", json.dumps(list(starred_ids)))
+                                # DB committed — now safe to send Discord notifications
+                                for song in songs_to_notify:
+                                    toot_text = _format_starred_toot(song, settings)
+                                    label = f"{song.get('artist')} - {song.get('title')}"
+                                    cover_id = song.get("coverArt") or song.get("albumId")
+                                    cover_bytes = None
+                                    if cover_id:
+                                        cover_bytes = navidrome_client.get_cover_art_bytes(cover_id)
+                                    if settings.get("pu_nd_star_confirm") == "1":
+                                        webhook_url = settings.get("discord_webhook_url", "").strip()
+                                        if webhook_url:
+                                            _queue_pending_toot(label, toot_text, cover_bytes, "image/jpeg", label, post_type="starred")
+                                            _send_discord_confirmation(webhook_url, label, toot_text, f"{APP_URL}/queue")
+                                            logger.info(f"Loved track toot queued for confirmation: {label}")
+                                        else:
+                                            logger.warning("pu_nd_star_confirm is set but discord_webhook_url is empty — posting directly")
+                                            self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
+                                    else:
+                                        self._post_toot_with_cover(mastodon, toot_text, cover_bytes, label, post_type="starred", visibility=settings.get("pu_toot_visibility") or "public")
+                                        logger.info(f"Posted starred toot: {label}")
                             except Exception as e:
                                 logger.error(f"Navidrome star toot check failed: {e}")
 
@@ -1743,7 +1766,8 @@ class ProfileUpdater:
                             if item.get("libraryItemId")
                         }
 
-                        # New books started
+                        # New books started — collect pending notifications; post directly if no confirm
+                        abs_pending_notifications: list[tuple] = []  # (label, toot_text, webhook_url)
                         for item in in_progress:
                             item_id = item.get("libraryItemId")
                             if not item_id or item_id in tooted_ids:
@@ -1765,15 +1789,12 @@ class ProfileUpdater:
                             if settings.get("pu_abs_confirm") == "1":
                                 webhook_url = settings.get("discord_webhook_url", "").strip()
                                 if webhook_url:
-                                    token = _queue_pending_toot(
+                                    _queue_pending_toot(
                                         label, toot_text, cover_bytes,
                                         "image/jpeg", f"Cover of {label}",
                                         post_type="abs_started",
                                     )
-                                    _send_discord_confirmation(
-                                        webhook_url, label, toot_text,
-                                        f"{APP_URL}/confirm-toot/{token}",
-                                    )
+                                    abs_pending_notifications.append((label, toot_text, webhook_url))
                                     logger.info(f"ABS started toot queued for confirmation: {label}")
                                 else:
                                     logger.warning("pu_abs_confirm is set but discord_webhook_url is empty — posting directly")
@@ -1817,15 +1838,12 @@ class ProfileUpdater:
                                 if settings.get("pu_abs_finished_confirm") == "1":
                                     webhook_url = settings.get("discord_webhook_url", "").strip()
                                     if webhook_url:
-                                        token = _queue_pending_toot(
+                                        _queue_pending_toot(
                                             label, toot_text, cover_bytes,
                                             "image/jpeg", f"Cover of {label}",
                                             post_type="abs_finished",
                                         )
-                                        _send_discord_confirmation(
-                                            webhook_url, label, toot_text,
-                                            f"{APP_URL}/confirm-toot/{token}",
-                                        )
+                                        abs_pending_notifications.append((label, toot_text, webhook_url))
                                         logger.info(f"ABS finished toot queued for confirmation: {label}")
                                     else:
                                         logger.warning("pu_abs_finished_confirm is set but discord_webhook_url is empty — posting directly")
@@ -1843,11 +1861,15 @@ class ProfileUpdater:
                                     with get_db() as conn:
                                         set_setting(conn, "pu_last_book_info", book_info)
 
-                        # Persist updated sets (cap at 500 to avoid unbounded growth)
+                        # Persist updated sets BEFORE sending Discord notifications so a crash
+                        # mid-notification doesn't cause re-queuing on restart.
                         with get_db() as conn:
                             set_setting(conn, "pu_abs_tooted_ids", json.dumps(list(tooted_ids)[-500:]))
                             set_setting(conn, "pu_abs_prev_in_progress_ids", json.dumps(list(current_ids)))
                             set_setting(conn, "pu_abs_finished_tooted_ids", json.dumps(list(finished_tooted)[-500:]))
+                        # Now safe to notify Discord
+                        for label, toot_text, webhook_url in abs_pending_notifications:
+                            _send_discord_confirmation(webhook_url, label, toot_text, f"{APP_URL}/queue")
                         self.last_abs_update = now
 
                     # Push all managed fields in one API call when anything changes

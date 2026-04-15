@@ -22,7 +22,7 @@ from mastodon import Mastodon
 
 from app.collector import run_full_sync
 from app.config import APP_PASSWORD, APP_URL, GITHUB_REPO, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE, MEDIA_PATH, POLL_INTERVAL, VERSION
-from app.profile_updater import ProfileUpdater, pop_pending_toot
+from app.profile_updater import ProfileUpdater, list_pending_toots, pop_pending_toot
 from app.roast import generate_roast, _add_to_roast_history
 from app.database import (
     can_post,
@@ -1141,6 +1141,74 @@ async def confirm_toot(token: str, request: Request):
         f"<h2>Posted!</h2><p><strong>{html.escape(entry['label'])}</strong> has been posted to Mastodon.</p>",
         status_code=200,
     )
+
+
+@app.get("/queue", response_class=HTMLResponse)
+async def queue_page(request: Request):
+    """Toot confirmation queue — list all pending posts."""
+    if (auth := _require_auth(request)):
+        return auth
+    items = list_pending_toots()
+    status = request.query_params.get("status", "")
+    label = request.query_params.get("label", "")
+    return templates.TemplateResponse("queue.html", {
+        "request": request,
+        "items": items,
+        "status": status,
+        "label": label,
+    })
+
+
+@app.post("/queue/{token}/post", response_class=HTMLResponse)
+async def queue_post_toot(token: str, request: Request):
+    """Post a pending toot from the queue."""
+    if (auth := _require_auth(request)):
+        return auth
+    entry = pop_pending_toot(token)
+    if entry is None:
+        return RedirectResponse("/queue?status=expired", status_code=303)
+    with get_db() as conn:
+        instance_url = get_setting(conn, "instance_url")
+        access_token = get_setting(conn, "access_token")
+        visibility = get_setting(conn, "pu_toot_visibility") or "public"
+    if not instance_url or not access_token:
+        return RedirectResponse("/queue?status=no_mastodon", status_code=303)
+    client = Mastodon(access_token=access_token, api_base_url=instance_url)
+    media_ids = None
+    if entry.get("cover_bytes"):
+        try:
+            media = client.media_post(
+                BytesIO(entry["cover_bytes"]),
+                mime_type=entry.get("cover_mime", "image/jpeg"),
+                description=entry.get("cover_desc", ""),
+            )
+            media_ids = [media["id"]]
+        except Exception as e:
+            logger.warning(f"queue post: cover upload failed ({entry['label']}): {e}")
+    post_type = entry.get("post_type", "unknown")
+    with get_db() as conn:
+        if not can_post(conn, post_type, entry["text"]):
+            return RedirectResponse("/queue?status=blocked", status_code=303)
+    try:
+        client.status_post(entry["text"], media_ids=media_ids, visibility=visibility)
+        with get_db() as conn:
+            record_post(conn, post_type, entry["text"])
+    except Exception as e:
+        logger.error(f"queue post: failed ({entry['label']}): {e}")
+        return RedirectResponse("/queue?status=error", status_code=303)
+    return RedirectResponse(
+        f"/queue?status=posted&label={_url_quote(entry['label'])}",
+        status_code=303,
+    )
+
+
+@app.post("/queue/{token}/dismiss", response_class=HTMLResponse)
+async def queue_dismiss_toot(token: str, request: Request):
+    """Dismiss a pending toot from the queue without posting."""
+    if (auth := _require_auth(request)):
+        return auth
+    pop_pending_toot(token)
+    return RedirectResponse("/queue?status=dismissed", status_code=303)
 
 
 @app.get("/health")
