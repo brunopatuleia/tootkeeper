@@ -1640,7 +1640,10 @@ class ProfileUpdater:
                                             songs_to_notify = [s for s in starred if str(s["id"]) in new_ids]
                                         # Persist updated known IDs BEFORE sending any notifications
                                         # so a crash mid-notification doesn't cause re-queuing on restart.
-                                        if starred_ids != known_ids:
+                                        # Guard: never overwrite with an empty set — an empty response
+                                        # is most likely a transient API failure, and wiping known_ids
+                                        # would cause every starred song to flood Discord on the next run.
+                                        if starred_ids and starred_ids != known_ids:
                                             set_setting(conn, "pu_nd_starred_ids", json.dumps(list(starred_ids)))
                                 # DB committed — now safe to send Discord notifications
                                 for song in songs_to_notify:
