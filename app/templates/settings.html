@@ -371,10 +371,12 @@
                 <div class="settings-section" style="margin-top: 1.5rem;">
                     <label class="pu-section-toggle">
                         <input type="checkbox" name="pu_album_enabled" value="1" {{ 'checked' if settings.get('pu_album_enabled', '0') == '1' }} onchange="toggleSection('album-fields', this.checked)">
-                        <h2>Navidrome — Album Finished <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you listen to 65% or more of an album in track order in a single session.</span></i></h2>
+                        <h2>Navidrome — Album Finished <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you listen to enough of an album in track order in a single session.</span></i></h2>
                     </label>
                     <div id="album-fields" style="{{ '' if settings.get('pu_album_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_album_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every album toot. Genres from Navidrome are appended automatically. Leave blank to use #NowPlaying.</span></i></label>
+                        <label for="pu_album_threshold">Completion threshold (%) <i class="info-tip">i<span class="tip-text">Minimum percentage of the album's tracks you must listen to in order before a toot fires. Default: 65.</span></i></label>
+                        <input type="number" id="pu_album_threshold" name="pu_album_threshold" min="1" max="100" style="width:6rem;" value="{{ settings.get('pu_album_threshold', '65') }}">
+                        <label for="pu_album_hashtags" style="margin-top:0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every album toot. Genres from Navidrome are appended automatically. Leave blank to use #NowPlaying.</span></i></label>
                         <input type="text" id="pu_album_hashtags" name="pu_album_hashtags" placeholder="#NowPlaying" value="{{ settings.get('pu_album_hashtags', '') }}">
                         <label for="pu_album_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for album toots. Leave blank to use the default format. Click a variable to insert it at the cursor.</span></i></label>
                         <div class="template-vars">{% for v in ['%Artist%','%Album%','%Year%','%AlbumLine%','%GenreTags%','%GenreTags:3%','%Hashtags%'] %}<span class="var-chip" onclick="insertVar('pu_album_template','{{ v }}')">{{ v }}</span>{% endfor %}</div>

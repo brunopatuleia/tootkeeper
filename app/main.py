@@ -29,8 +29,10 @@ from app.database import (
     get_all_settings,
     get_bookmarks,
     get_confirmation_log,
+    get_confirmation_log_entry,
     get_db,
     record_post,
+    set_confirmation_log_posted,
     update_confirmation_log,
     get_favorites,
     get_follower_chart_data,
@@ -1219,6 +1221,41 @@ async def queue_dismiss_toot(token: str, request: Request):
     return RedirectResponse("/queue?status=dismissed", status_code=303)
 
 
+@app.post("/queue/history/{entry_id}/post", response_class=HTMLResponse)
+async def queue_history_post(entry_id: int, request: Request):
+    """Re-post a dismissed or expired toot from the history log (text only — cover is gone)."""
+    if (auth := _require_auth(request)):
+        return auth
+    with get_db() as conn:
+        entry = get_confirmation_log_entry(conn, entry_id)
+    if not entry or entry.get("action") == "posted":
+        return RedirectResponse("/queue?status=expired", status_code=303)
+    with get_db() as conn:
+        instance_url = get_setting(conn, "instance_url")
+        access_token = get_setting(conn, "access_token")
+        visibility = get_setting(conn, "pu_toot_visibility") or "public"
+    if not instance_url or not access_token:
+        return RedirectResponse("/queue?status=no_mastodon", status_code=303)
+    post_type = entry.get("post_type", "unknown")
+    toot_text = entry["toot_text"]
+    with get_db() as conn:
+        if not can_post(conn, post_type, toot_text):
+            return RedirectResponse("/queue?status=blocked", status_code=303)
+    client = Mastodon(access_token=access_token, api_base_url=instance_url)
+    try:
+        client.status_post(toot_text, visibility=visibility)
+        with get_db() as conn:
+            record_post(conn, post_type, toot_text)
+            set_confirmation_log_posted(conn, entry_id, time.time())
+    except Exception as e:
+        logger.error(f"queue history post: failed ({entry.get('label')}): {e}")
+        return RedirectResponse("/queue?status=error", status_code=303)
+    return RedirectResponse(
+        f"/queue?status=posted&label={_url_quote(entry['label'])}",
+        status_code=303,
+    )
+
+
 @app.get("/health")
 async def health_check():
     """Lightweight liveness probe — no auth required."""
@@ -1284,7 +1321,7 @@ PU_CHECKBOX_KEYS = [
 AUTO_TOOTS_SETTINGS_KEYS = [
     "pu_weekly_artists_hashtags", "pu_weekly_artists_day", "pu_weekly_artists_hour",
     "pu_books_hashtags",
-    "pu_album_hashtags",
+    "pu_album_hashtags", "pu_album_threshold",
     "pu_abs_hashtags", "pu_abs_interval",
     "pu_abs_finished_hashtags",
     "abs_public_url", "abs_share_expiry_hours",

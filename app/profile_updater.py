@@ -1598,7 +1598,8 @@ class ProfileUpdater:
                                         self._save_album_session()
                                     total = self._album_session["total_tracks"]
                                     seen = len(self._album_session["tracks_seen"])
-                                    if total > 0 and seen / total >= 0.65:
+                                    threshold = float(settings.get("pu_album_threshold") or 65) / 100
+                                    if total > 0 and seen / total >= threshold:
                                         with self._post_lock:
                                             # Re-check under lock — a second thread may have
                                             # already posted while we were waiting
