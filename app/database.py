@@ -884,3 +884,15 @@ def get_confirmation_log(conn: sqlite3.Connection, limit: int = 100) -> list[dic
         (limit,),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_confirmation_log_entry(conn: sqlite3.Connection, entry_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM confirmation_log WHERE id=?", (entry_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def set_confirmation_log_posted(conn: sqlite3.Connection, entry_id: int, acted_at: float) -> None:
+    conn.execute(
+        "UPDATE confirmation_log SET action='posted', acted_at=? WHERE id=?",
+        (acted_at, entry_id),
+    )
