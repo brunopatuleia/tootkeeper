@@ -331,7 +331,8 @@
 
                 <div class="settings-section">
                     <h2>General</h2>
-                    <label for="pu_toot_visibility">Default visibility <i class="info-tip">i<span class="tip-text">Visibility applied to all auto-toots (audiobook, album, loved track, weekly recap, book activity). Does not affect toots you post manually.</span></i></label>
+                    <label for="pu_toot_visibility">Default visibility</label>
+                    <p class="setup-hint" style="margin-bottom:0.4rem;">Applies to all auto-toots (album, loved track, audiobook, weekly recap, book activity). Does not affect toots you post manually.</p>
                     <select id="pu_toot_visibility" name="pu_toot_visibility">
                         {% set vis = settings.get('pu_toot_visibility', 'public') %}
                         <option value="public" {% if vis == 'public' %}selected{% endif %}>Public</option>
@@ -343,7 +344,9 @@
 
                 <div class="settings-section">
                     <h2>Discord Confirmation</h2>
-                    <label for="discord_webhook_url">Webhook URL <i class="info-tip">i<span class="tip-text">Paste a Discord Incoming Webhook URL here. When confirmation is enabled for a source, the app posts a preview to this channel with a confirm link instead of posting immediately.</span></i></label>
+                    <p class="setup-hint" style="margin-bottom:0.75rem;">When enabled for a source, toots go to the Post Queue instead of posting immediately. A preview is sent to Discord so you can approve or dismiss from there.</p>
+                    <label for="discord_webhook_url">Webhook URL</label>
+                    <p class="setup-hint" style="margin-bottom:0.4rem;">Paste a Discord Incoming Webhook URL. Create one under Server Settings → Integrations → Webhooks.</p>
                     <input type="text" id="discord_webhook_url" name="discord_webhook_url" placeholder="https://discord.com/api/webhooks/..." value="{{ settings.get('discord_webhook_url', '') }}">
                     <p class="setup-hint" style="margin: 0.75rem 0 0.4rem 0;">Require confirmation for:</p>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.3rem;">
@@ -374,12 +377,15 @@
                         <h2>Navidrome — Album Finished <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you listen to enough of an album in track order in a single session.</span></i></h2>
                     </label>
                     <div id="album-fields" style="{{ '' if settings.get('pu_album_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_album_threshold">Completion threshold (%) <i class="info-tip">i<span class="tip-text">Minimum percentage of the album's tracks you must listen to in order before a toot fires. Default: 65.</span></i></label>
+                        <label for="pu_album_threshold">Completion threshold (%)</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Minimum percentage of the album's tracks you must listen to in order during a single session before a toot is triggered. Default: 65.</p>
                         <input type="number" id="pu_album_threshold" name="pu_album_threshold" min="1" max="100" style="width:6rem;" value="{{ settings.get('pu_album_threshold', '65') }}" oninput="checkAlbumThreshold(this)">
                         <div id="album-threshold-warning" style="display:none;color:#e07a00;font-size:0.8rem;margin-top:0.3rem;">&#9888; Below 33% — toots may fire after just a few tracks.</div>
-                        <label for="pu_album_hashtags" style="margin-top:0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every album toot. Genres from Navidrome are appended automatically. Leave blank to use #NowPlaying.</span></i></label>
+                        <label for="pu_album_hashtags" style="margin-top:0.75rem;">Hashtags</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Space-separated hashtags added to every album toot. Genres from Navidrome are appended automatically (up to 5). Leave blank to use #NowPlaying.</p>
                         <input type="text" id="pu_album_hashtags" name="pu_album_hashtags" placeholder="#NowPlaying" value="{{ settings.get('pu_album_hashtags', '') }}">
-                        <label for="pu_album_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for album toots. Leave blank to use the default format. Click a variable to insert it at the cursor.</span></i></label>
+                        <label for="pu_album_template" style="margin-top: 0.75rem;">Post template</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Customise the toot layout. Click a variable chip to insert it at the cursor. Leave blank for the default format.</p>
                         <div class="template-vars">{% for v in ['%Artist%','%Album%','%Year%','%AlbumLine%','%GenreTags%','%GenreTags:3%','%Hashtags%'] %}<span class="var-chip" onclick="insertVar('pu_album_template','{{ v }}')">{{ v }}</span>{% endfor %}</div>
                         <textarea id="pu_album_template" name="pu_album_template" rows="4" placeholder="%Artist%&#10;%AlbumLine%&#10;&#10;%Hashtags%">{{ settings.get('pu_album_template', '') }}</textarea>
                     </div>
@@ -391,7 +397,8 @@
                         <h2>Navidrome — Loved Track <i class="info-tip">i<span class="tip-text">Posts a toot with cover art when you star or love a track in Navidrome. Only new stars since enabling are posted.</span></i></h2>
                     </label>
                     <div id="star-fields" style="{{ '' if settings.get('pu_nd_star_toot_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_star_template">Post template <i class="info-tip">i<span class="tip-text">Custom template for loved track toots. Leave blank for default. If %SongLink% is used, the app fetches a Songlink URL via odesli (requires MusicBrainz ID in Navidrome).</span></i></label>
+                        <label for="pu_star_template">Post template</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Customise the toot layout. Click a variable chip to insert it at the cursor. Leave blank for the default format. %SongLink% fetches a universal music link via odesli — requires a MusicBrainz ID set in Navidrome.</p>
                         <div class="template-vars">{% for v in ['%Artist%','%Title%','%Album%','%Year%','%GenreTag%','%SongLink%','%SimilarArtists%','%Hashtags%'] %}<span class="var-chip" onclick="insertVar('pu_star_template','{{ v }}')">{{ v }}</span>{% endfor %}</div>
                         <textarea id="pu_star_template" name="pu_star_template" rows="4" placeholder="%Artist% - %Title%&#10;&#10;%Hashtags%">{{ settings.get('pu_star_template', '') }}</textarea>
                     </div>
@@ -403,15 +410,20 @@
                         <h2>Audiobookshelf — New Audiobook <i class="info-tip">i<span class="tip-text">Posts a toot with cover art the first time a book appears in your In Progress list. Each book is posted only once.</span></i></h2>
                     </label>
                     <div id="abs-fields" style="{{ '' if settings.get('pu_abs_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_abs_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags added to every toot. Genres from Audiobookshelf are appended automatically. Leave blank to use #NowReading #Audiobooks #Books.</span></i></label>
+                        <label for="pu_abs_hashtags">Hashtags</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Space-separated hashtags added to every toot. Genres from Audiobookshelf are appended automatically (up to 5). Leave blank to use #NowReading #Audiobooks #Books.</p>
                         <input type="text" id="pu_abs_hashtags" name="pu_abs_hashtags" placeholder="#NowReading #Audiobooks #Books" value="{{ settings.get('pu_abs_hashtags', '') }}">
-                        <label for="pu_abs_interval" style="margin-top: 0.75rem;">Check interval (seconds) <i class="info-tip">i<span class="tip-text">How often the app polls Audiobookshelf for new in-progress books. Minimum 60 seconds. Default is 900 (15 min).</span></i></label>
+                        <label for="pu_abs_interval" style="margin-top: 0.75rem;">Check interval (seconds)</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">How often the app polls Audiobookshelf for new in-progress books. Minimum 60. Default: 900 (15 min).</p>
                         <input type="number" id="pu_abs_interval" name="pu_abs_interval" min="60" placeholder="900" value="{{ settings.get('pu_abs_interval', '900') }}">
-                        <label for="abs_public_url" style="margin-top: 0.75rem;">Public URL <i class="info-tip">i<span class="tip-text">The externally accessible URL of your Audiobookshelf instance. If set, a share link is appended to the toot. Leave blank if your instance is LAN or VPN only. Applies to both started and finished toots.</span></i></label>
+                        <label for="abs_public_url" style="margin-top: 0.75rem;">Public URL</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Externally accessible URL of your Audiobookshelf instance. When set, a share link is appended to the toot. Leave blank if your instance is LAN or VPN only. Applies to both started and finished toots.</p>
                         <input type="text" id="abs_public_url" name="abs_public_url" placeholder="https://audiobookshelf.example.com" value="{{ settings.get('abs_public_url', '') }}">
-                        <label for="abs_share_expiry_hours" style="margin-top: 0.75rem;">Share link expiry (hours) <i class="info-tip">i<span class="tip-text">How long the share link stays active. Set to 0 for a permanent link. Example: 168 = 1 week.</span></i></label>
+                        <label for="abs_share_expiry_hours" style="margin-top: 0.75rem;">Share link expiry (hours)</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">How long the share link stays active. Set to 0 for a permanent link. Example: 168 = 1 week.</p>
                         <input type="number" id="abs_share_expiry_hours" name="abs_share_expiry_hours" min="0" placeholder="0" value="{{ settings.get('abs_share_expiry_hours', '0') }}">
-                        <label for="pu_abs_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for new audiobook toots. Leave blank for default. Optional variables are removed automatically if the data is missing.</span></i></label>
+                        <label for="pu_abs_template" style="margin-top: 0.75rem;">Post template</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Customise the toot layout. Click a variable chip to insert it at the cursor. Leave blank for the default format. Optional variables (e.g. %Subtitle%) are removed automatically if the data is missing.</p>
                         <div class="template-vars">{% for v in ['%Title%','%Subtitle%','%Author%','%AuthorLine%','%Narrator%','%NarratorLine%','%Year%','%YearBracketed%','%ShareLink%','%GenreTags%','%GenreTags:3%','%Hashtags%'] %}<span class="var-chip" onclick="insertVar('pu_abs_template','{{ v }}')">{{ v }}</span>{% endfor %}</div>
                         <textarea id="pu_abs_template" name="pu_abs_template" rows="5" placeholder="%Title%&#10;%Subtitle%&#10;%AuthorLine%&#10;%NarratorLine%&#10;%YearBracketed%&#10;&#10;%Hashtags%">{{ settings.get('pu_abs_template', '') }}</textarea>
                     </div>
@@ -423,9 +435,11 @@
                         <h2>Audiobookshelf — Finished Audiobook <i class="info-tip">i<span class="tip-text">Posts a toot when a book leaves your In Progress list and is marked as finished. Posts once per book.</span></i></h2>
                     </label>
                     <div id="abs-finished-fields" style="{{ '' if settings.get('pu_abs_finished_enabled', '0') == '1' else 'display:none;' }}">
-                        <label for="pu_abs_finished_hashtags">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags for finished book toots. Genres are appended automatically. Leave blank to use #FinishedReading #Audiobooks #Books.</span></i></label>
+                        <label for="pu_abs_finished_hashtags">Hashtags</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Space-separated hashtags for finished book toots. Genres are appended automatically (up to 5). Leave blank to use #FinishedReading #Audiobooks #Books.</p>
                         <input type="text" id="pu_abs_finished_hashtags" name="pu_abs_finished_hashtags" placeholder="#FinishedReading #Audiobooks #Books" value="{{ settings.get('pu_abs_finished_hashtags', '') }}">
-                        <label for="pu_abs_finished_template" style="margin-top: 0.75rem;">Post template <i class="info-tip">i<span class="tip-text">Custom template for finished audiobook toots. Note: %Title% is pre-filled as "Just finished: Title". Leave blank for default.</span></i></label>
+                        <label for="pu_abs_finished_template" style="margin-top: 0.75rem;">Post template</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Customise the toot layout. Click a variable chip to insert it at the cursor. Leave blank for the default format. %Title% is pre-filled as "Just finished: Title".</p>
                         <div class="template-vars">{% for v in ['%Title%','%Subtitle%','%Author%','%AuthorLine%','%Narrator%','%NarratorLine%','%Year%','%YearBracketed%','%ShareLink%','%GenreTags%','%GenreTags:3%','%Hashtags%'] %}<span class="var-chip" onclick="insertVar('pu_abs_finished_template','{{ v }}')">{{ v }}</span>{% endfor %}</div>
                         <textarea id="pu_abs_finished_template" name="pu_abs_finished_template" rows="5" placeholder="%Title%&#10;%Subtitle%&#10;%AuthorLine%&#10;%NarratorLine%&#10;%YearBracketed%&#10;&#10;%Hashtags%">{{ settings.get('pu_abs_finished_template', '') }}</textarea>
                     </div>
@@ -437,9 +451,11 @@
                         <h2>Weekly Top Artists <i class="info-tip">i<span class="tip-text">Posts your top 5 most-listened artists once a week. Uses Last.fm, ListenBrainz, or Navidrome play counts.</span></i></h2>
                     </label>
                     <div id="weekly-fields" style="{{ '' if settings.get('pu_weekly_artists_enabled', '0') == '1' else 'display:none;' }}">
+                        <p class="setup-hint" style="margin-bottom:0.75rem;">Posts your top 5 most-listened artists once a week. Uses Last.fm, ListenBrainz, or Navidrome play counts — whichever is configured in Connections.</p>
                         <div style="display: flex; gap: 1rem;">
                             <div style="flex: 1;">
-                                <label for="pu_weekly_artists_day">Day <i class="info-tip">i<span class="tip-text">Day of the week to post the recap.</span></i></label>
+                                <label for="pu_weekly_artists_day">Day</label>
+                                <p class="setup-hint" style="margin-bottom:0.4rem;">Day of the week to post the recap.</p>
                                 <select id="pu_weekly_artists_day" name="pu_weekly_artists_day">
                                     {% set day_val = settings.get('pu_weekly_artists_day', '0') %}
                                     <option value="0" {{ 'selected' if day_val == '0' }}>Monday</option>
@@ -452,26 +468,27 @@
                                 </select>
                             </div>
                             <div style="flex: 1;">
-                                <label for="pu_weekly_artists_hour">Hour <i class="info-tip">i<span class="tip-text">Hour of the day to post (0-23, server time). The post is sent once on the configured day and hour.</span></i></label>
+                                <label for="pu_weekly_artists_hour">Hour</label>
+                                <p class="setup-hint" style="margin-bottom:0.4rem;">Hour to post (0–23, server time).</p>
                                 <input type="number" id="pu_weekly_artists_hour" name="pu_weekly_artists_hour" min="0" max="23" placeholder="0" value="{{ settings.get('pu_weekly_artists_hour', '0') }}">
                             </div>
                         </div>
-                        <label for="pu_weekly_artists_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags appended to the weekly artists toot. Leave blank for defaults.</span></i></label>
+                        <label for="pu_weekly_artists_hashtags" style="margin-top: 0.75rem;">Hashtags</label>
+                        <p class="setup-hint" style="margin-bottom:0.4rem;">Space-separated hashtags appended to the weekly recap toot. Leave blank for defaults.</p>
                         <input type="text" id="pu_weekly_artists_hashtags" name="pu_weekly_artists_hashtags" placeholder="#music #weeklyrecap" value="{{ settings.get('pu_weekly_artists_hashtags', '') }}">
                     </div>
                 </div>
 
                 <div class="settings-section" style="margin-top: 1.5rem;">
-                    <h2>Goodreads — Book Events <i class="info-tip">i<span class="tip-text">Reads your public Goodreads RSS feed and posts when your reading status changes.</span></i></h2>
+                    <h2>Goodreads — Book Events</h2>
+                    <p class="setup-hint" style="margin-bottom:0.75rem;">Reads your public Goodreads RSS feed and posts when your reading status changes. Requires Goodreads RSS URL in Connections.</p>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.4rem;">
                         <input type="checkbox" name="pu_books_post_start" value="1" {{ 'checked' if settings.get('pu_books_post_start', '0') == '1' }}>
                         Post when I start reading a book
-                        <i class="info-tip">i<span class="tip-text">Posts a toot when a book appears as currently reading in your Goodreads feed.</span></i>
                     </label>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                         <input type="checkbox" name="pu_books_post_finish" value="1" {{ 'checked' if settings.get('pu_books_post_finish', '0') == '1' }}>
-                        Post when I finish a book
-                        <i class="info-tip">i<span class="tip-text">Posts a toot with rating when a book appears as read in your Goodreads feed.</span></i>
+                        Post when I finish a book <span class="setup-hint">(includes star rating)</span>
                     </label>
                     <label for="pu_books_hashtags" style="margin-top: 0.75rem;">Hashtags <i class="info-tip">i<span class="tip-text">Hashtags appended to Goodreads book toots. Leave blank for defaults.</span></i></label>
                     <input type="text" id="pu_books_hashtags" name="pu_books_hashtags" placeholder="#books #amreading" value="{{ settings.get('pu_books_hashtags', '') }}">
